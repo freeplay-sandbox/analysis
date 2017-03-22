@@ -932,7 +932,12 @@ class TimelineFrame(QGraphicsItem):
         self._stamp_right = stamp_right
 
     def translate_timeline(self, dstamp):
-        self.set_timeline_view(self._stamp_left + dstamp, self._stamp_right + dstamp)
+        delta = self._stamp_right - self._stamp_left
+        left = max(self._start_stamp.to_sec(), self._stamp_left + dstamp)
+        right = min(self._end_stamp.to_sec(), left + delta)
+        left = right - delta # needed to prevent stretching the timeline when attempting to pan beyond end_stamp
+
+        self.set_timeline_view(left, right)
         self.scene().update()
 
     def translate_timeline_left(self):
@@ -959,35 +964,16 @@ class TimelineFrame(QGraphicsItem):
     def zoom_out(self):
         self.zoom_timeline(2.0)
 
-    def can_zoom_in(self):
-        return self.can_zoom(0.5)
-
-    def can_zoom_out(self):
-        return self.can_zoom(2.0)
-
-    def can_zoom(self, desired_zoom):
-        if not self._stamp_left or not self.playhead:
-            return False
-
-        new_interval = self.get_zoom_interval(desired_zoom)
-        if not new_interval:
-            return False
-
-        new_range = new_interval[1] - new_interval[0]
-        curr_range = self._stamp_right - self._stamp_left
-        actual_zoom = new_range / curr_range
-
-        if desired_zoom < 1.0:
-            return actual_zoom < 0.95
-        else:
-            return actual_zoom > 1.05
-
     def zoom_timeline(self, zoom, center=None):
+
         interval = self.get_zoom_interval(zoom, center)
         if not interval:
             return
 
-        self._stamp_left, self._stamp_right = interval
+        left, right = interval
+
+        self._stamp_left = max(self.start_stamp.to_sec(), left)
+        self._stamp_right = min(self.end_stamp.to_sec(), right)
 
         self.scene().update()
 
@@ -1126,16 +1112,12 @@ class TimelineFrame(QGraphicsItem):
         else:
             # Mouse dragging
             if event.buttons() == Qt.MidButton or event.modifiers() == Qt.ShiftModifier:
-                # Middle or shift: zoom and pan
-                dx_drag, dy_drag = x - self._dragged_pos.x(), y - self._dragged_pos.y()
-
-                if dx_drag != 0:
-                    self.translate_timeline(-self.map_dx_to_dstamp(dx_drag))
-                if (dx_drag == 0 and abs(dy_drag) > 0) or (dx_drag != 0 and abs(float(dy_drag) / dx_drag) > 0.2 and abs(dy_drag) > 1):
-                    zoom = min(self._max_zoom_speed, max(self._min_zoom_speed, 1.0 + self._zoom_sensitivity * dy_drag))
-                    self.zoom_timeline(zoom, self.map_x_to_stamp(x))
+                # Middle or shift: pan
+                dx_drag = x - self._dragged_pos.x()
+                self.translate_timeline(-self.map_dx_to_dstamp(dx_drag))
 
                 self.scene().views()[0].setCursor(QCursor(Qt.ClosedHandCursor))
+
             elif event.buttons() == Qt.LeftButton:
                 # Left: move selected region and move selected region boundry
                 clicked_x = self._clicked_pos.x()

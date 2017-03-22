@@ -85,17 +85,10 @@ class BagWidget(QWidget):
         self.faster_button.setIcon(QIcon.fromTheme('media-seek-forward'))
         self.previous_button.setIcon(QIcon.fromTheme('go-previous'))
         self.next_button.setIcon(QIcon.fromTheme('go-next'))
-        self.zoom_in_button.setIcon(QIcon.fromTheme('zoom-in'))
-        self.zoom_out_button.setIcon(QIcon.fromTheme('zoom-out'))
         self.zoom_all_button.setIcon(QIcon.fromTheme('zoom-original'))
-        self.thumbs_button.setIcon(QIcon.fromTheme('insert-image'))
         self.load_button.setIcon(QIcon.fromTheme('document-open'))
-        self.save_button.setIcon(QIcon.fromTheme('document-save'))
 
         self.play_button.clicked[bool].connect(self._handle_play_clicked)
-        self.thumbs_button.clicked[bool].connect(self._handle_thumbs_clicked)
-        self.zoom_in_button.clicked[bool].connect(self._handle_zoom_in_clicked)
-        self.zoom_out_button.clicked[bool].connect(self._handle_zoom_out_clicked)
         self.zoom_all_button.clicked[bool].connect(self._handle_zoom_all_clicked)
         self.previous_button.clicked[bool].connect(self._handle_previous_clicked)
         self.next_button.clicked[bool].connect(self._handle_next_clicked)
@@ -104,7 +97,6 @@ class BagWidget(QWidget):
         self.begin_button.clicked[bool].connect(self._handle_begin_clicked)
         self.end_button.clicked[bool].connect(self._handle_end_clicked)
         self.load_button.clicked[bool].connect(self._handle_load_clicked)
-        self.save_button.clicked[bool].connect(self._handle_save_clicked)
         self.graphics_view.mousePressEvent = self._timeline.on_mouse_down
         self.graphics_view.mouseReleaseEvent = self._timeline.on_mouse_up
         self.graphics_view.mouseMoveEvent = self._timeline.on_mouse_move
@@ -116,9 +108,6 @@ class BagWidget(QWidget):
 
         self.graphics_view.keyPressEvent = self.graphics_view_on_key_press
         self.play_button.setEnabled(False)
-        self.thumbs_button.setEnabled(False)
-        self.zoom_in_button.setEnabled(False)
-        self.zoom_out_button.setEnabled(False)
         self.zoom_all_button.setEnabled(False)
         self.previous_button.setEnabled(False)
         self.next_button.setEnabled(False)
@@ -126,7 +115,6 @@ class BagWidget(QWidget):
         self.slower_button.setEnabled(False)
         self.begin_button.setEnabled(False)
         self.end_button.setEnabled(False)
-        self.save_button.setEnabled(False)
 
 
         self._timeline.status_bar_changed_signal.connect(self._update_status_bar)
@@ -245,9 +233,6 @@ class BagWidget(QWidget):
 
         bag = rosbag.Bag(filename)
         self.play_button.setEnabled(True)
-        self.thumbs_button.setEnabled(True)
-        self.zoom_in_button.setEnabled(True)
-        self.zoom_out_button.setEnabled(True)
         self.zoom_all_button.setEnabled(True)
         self.next_button.setEnabled(True)
         self.previous_button.setEnabled(True)
@@ -255,7 +240,6 @@ class BagWidget(QWidget):
         self.slower_button.setEnabled(True)
         self.begin_button.setEnabled(True)
         self.end_button.setEnabled(True)
-        self.save_button.setEnabled(True)
         self._timeline.add_bag(bag)
         qWarning("Done loading %s" % filename )
         # put the progress bar back the way it was

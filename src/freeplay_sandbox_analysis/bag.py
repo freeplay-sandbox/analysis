@@ -47,7 +47,7 @@ class Bag(Plugin):
         :param context: plugin context hook to enable adding widgets as a ROS_GUI pane, ''PluginContext''
         """
         super(Bag, self).__init__(context)
-        self.setObjectName('Bag')
+        self.setObjectName('Free-play sandbox analysis')
 
         args = self._parse_args(context.argv())
 
@@ -64,7 +64,7 @@ class Bag(Plugin):
         load_thread.start()
 
     def _parse_args(self, argv):
-        parser = argparse.ArgumentParser(prog='rqt_bag', add_help=False)
+        parser = argparse.ArgumentParser(prog='analysis', add_help=False)
         Bag.add_arguments(parser)
         return parser.parse_args(argv)
 

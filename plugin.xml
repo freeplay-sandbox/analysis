@@ -1,7 +1,7 @@
 <library path="src">
-  <class name="Bag" type="rqt_bag.bag.Bag" base_class_type="rqt_gui_py::Plugin">
+  <class name="Free-play sandbox analysis tool" type="freeplay_sandbox_analysis.bag.Bag" base_class_type="rqt_gui_py::Plugin">
     <description>
-      A Python GUI plugin for displaying and replaying ROS bag files.
+      A Python GUI plugin for displaying and analysis recording from the freeplay sandbox.
     </description>
     <qtgui>
       <group>
@@ -9,9 +9,9 @@
         <icon type="theme">folder</icon>
         <statustip>Plugins related to logging.</statustip>
       </group>
-      <label>Bag</label>
+      <label>Free-play sandbox analysis</label>
       <icon type="theme">applications-other</icon>
-      <statustip>A Python GUI plugin for displaying and replaying ROS bag files.</statustip>
+      <statustip>A Python GUI plugin for displaying and analysis recording from the freeplay sandbox.</statustip>
     </qtgui>
   </class>
 </library>

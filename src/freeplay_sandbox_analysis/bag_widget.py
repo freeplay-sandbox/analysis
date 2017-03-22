@@ -65,7 +65,7 @@ class BagWidget(QWidget):
         """
         super(BagWidget, self).__init__()
         rp = rospkg.RosPack()
-        ui_file = os.path.join(rp.get_path('rqt_bag'), 'resource', 'bag_widget.ui')
+        ui_file = os.path.join(rp.get_path('freeplay_sandbox_analysis'), 'resource', 'bag_widget.ui')
         loadUi(ui_file, self, {'BagGraphicsView': BagGraphicsView})
 
         self.setObjectName('BagWidget')
@@ -89,7 +89,6 @@ class BagWidget(QWidget):
         self.zoom_out_button.setIcon(QIcon.fromTheme('zoom-out'))
         self.zoom_all_button.setIcon(QIcon.fromTheme('zoom-original'))
         self.thumbs_button.setIcon(QIcon.fromTheme('insert-image'))
-        self.record_button.setIcon(QIcon.fromTheme('media-record'))
         self.load_button.setIcon(QIcon.fromTheme('document-open'))
         self.save_button.setIcon(QIcon.fromTheme('document-save'))
 
@@ -104,7 +103,6 @@ class BagWidget(QWidget):
         self.slower_button.clicked[bool].connect(self._handle_slower_clicked)
         self.begin_button.clicked[bool].connect(self._handle_begin_clicked)
         self.end_button.clicked[bool].connect(self._handle_end_clicked)
-        self.record_button.clicked[bool].connect(self._handle_record_clicked)
         self.load_button.clicked[bool].connect(self._handle_load_clicked)
         self.save_button.clicked[bool].connect(self._handle_save_clicked)
         self.graphics_view.mousePressEvent = self._timeline.on_mouse_down
@@ -130,7 +128,6 @@ class BagWidget(QWidget):
         self.end_button.setEnabled(False)
         self.save_button.setEnabled(False)
 
-        self._recording = False
 
         self._timeline.status_bar_changed_signal.connect(self._update_status_bar)
         self.set_status_text.connect(self._set_status_text)
@@ -228,36 +225,6 @@ class BagWidget(QWidget):
     def _handle_zoom_in_clicked(self):
         self._timeline.zoom_in()
 
-    def _handle_record_clicked(self):
-        if self._recording:
-            self._timeline.toggle_recording()
-            return
-
-        #TODO Implement limiting by regex and by number of messages per topic
-        self.topic_selection = TopicSelection()
-        self.topic_selection.recordSettingsSelected.connect(self._on_record_settings_selected)
-
-
-    def _on_record_settings_selected(self, all_topics, selected_topics):
-        # TODO verify master is still running
-        filename = QFileDialog.getSaveFileName(self, self.tr('Select prefix for new Bag File'), '.', self.tr('Bag files {.bag} (*.bag)'))
-        if filename[0] != '':
-            prefix = filename[0].strip()
-
-            # Get filename to record to
-            record_filename = time.strftime('%Y-%m-%d-%H-%M-%S.bag', time.localtime(time.time()))
-            if prefix.endswith('.bag'):
-                prefix = prefix[:-len('.bag')]
-            if prefix:
-                record_filename = '%s_%s' % (prefix, record_filename)
-
-            rospy.loginfo('Recording to %s.' % record_filename)
-
-            self.load_button.setEnabled(False)
-            self._recording = True
-            self._timeline.record_bag(record_filename, all_topics, selected_topics)
-
-
     def _handle_load_clicked(self):
         filename = QFileDialog.getOpenFileName(self, self.tr('Load from File'), '.', self.tr('Bag files {.bag} (*.bag)'))
         if filename[0] != '':
@@ -289,7 +256,6 @@ class BagWidget(QWidget):
         self.begin_button.setEnabled(True)
         self.end_button.setEnabled(True)
         self.save_button.setEnabled(True)
-        self.record_button.setEnabled(False)
         self._timeline.add_bag(bag)
         qWarning("Done loading %s" % filename )
         # put the progress bar back the way it was

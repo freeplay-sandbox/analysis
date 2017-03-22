@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>Bag</class>
- <widget class="QWidget" name="Bag">
+ <class>Free-play sandbox analysis</class>
+ <widget class="QWidget" name="Free-play sandbox analysis">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Bag</string>
+   <string>Free-play sandbox analysis</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <property name="spacing">
@@ -22,22 +22,6 @@
    </property>
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout">
-     <item>
-      <widget class="QPushButton" name="record_button">
-       <property name="toolTip">
-        <string>Record Bag</string>
-       </property>
-       <property name="text">
-        <string/>
-       </property>
-       <property name="iconSize">
-        <size>
-         <width>16</width>
-         <height>16</height>
-        </size>
-       </property>
-      </widget>
-     </item>
      <item>
       <widget class="QPushButton" name="load_button">
        <property name="toolTip">
@@ -453,7 +437,7 @@
   <customwidget>
    <class>BagGraphicsView</class>
    <extends>QGraphicsView</extends>
-   <header>rqt_bag.bag_widget</header>
+   <header>freeplay_sandbox_analysis.bag_widget</header>
   </customwidget>
  </customwidgets>
  <resources/>

@@ -234,26 +234,30 @@
    <item>
     <layout class="QHBoxLayout" name="status_bar_layout">
      <item>
-      <widget class="QProgressBar" name="progress_bar">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="value">
-        <number>0</number>
-       </property>
-       <property name="textVisible">
-        <bool>false</bool>
+      <widget class="QLabel" name="status_label">
+       <property name="text">
+        <string/>
        </property>
       </widget>
+     </item>
+     <item>
+      <spacer name="progressbarSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
      </item>
      <item>
       <widget class="QLabel" name="stamp_label">
        <property name="maximumSize">
         <size>
-         <width>125</width>
+         <width>150</width>
          <height>16777215</height>
         </size>
        </property>
@@ -278,7 +282,7 @@
       <widget class="QLabel" name="date_label">
        <property name="maximumSize">
         <size>
-         <width>180</width>
+         <width>200</width>
          <height>16777215</height>
         </size>
        </property>
@@ -334,7 +338,7 @@
       <widget class="QLabel" name="playspeed_label">
        <property name="maximumSize">
         <size>
-         <width>80</width>
+         <width>100</width>
          <height>16777215</height>
         </size>
        </property>
@@ -356,7 +360,7 @@
       <widget class="QLabel" name="filesize_label">
        <property name="maximumSize">
         <size>
-         <width>80</width>
+         <width>120</width>
          <height>16777215</height>
         </size>
        </property>

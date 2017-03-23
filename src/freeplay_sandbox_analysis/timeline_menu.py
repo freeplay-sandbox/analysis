@@ -33,7 +33,7 @@
 from python_qt_binding.QtWidgets import QVBoxLayout, QMenu, QWidget, QDockWidget
 
 class TopicPopupWidget(QWidget):
-    def __init__(self, popup_name, timeline, viewer_type, topic):
+    def __init__(self, popup_name, timeline, viewer_type, topics):
         super(TopicPopupWidget, self).__init__()
         self.setObjectName(popup_name)
         self.setWindowTitle(popup_name)
@@ -43,20 +43,22 @@ class TopicPopupWidget(QWidget):
 
         self._timeline = timeline
         self._viewer_type = viewer_type
-        self._topic = topic
+        self._topics = topics
         self._viewer = None
         self._is_listening = False
         self._connected = False # True when the record bag is effectively loaded
 
     def hideEvent(self, event):
         if self._connected and self._is_listening:
-            self._timeline.remove_listener(self._topic, self._viewer)
+            for topic in self._topics:
+                self._timeline.remove_listener(topic, self._viewer)
             self._is_listening = False
         super(TopicPopupWidget, self).hideEvent(event)
 
     def showEvent(self, event):
         if self._connected and not self._is_listening:
-            self._timeline.add_listener(self._topic, self._viewer)
+            for topic in self._topics:
+                self._timeline.add_listener(topic, self._viewer)
             self._is_listening = True
         super(TopicPopupWidget, self).showEvent(event)
 
@@ -74,7 +76,8 @@ class TopicPopupWidget(QWidget):
 
             # remove old listener
             if self._viewer:
-                self._timeline.remove_listener(self._topic, self._viewer)
+                for topic in self._topics:
+                    self._timeline.remove_listener(topic, self._viewer)
                 self._viewer = None
 
             # clean out the layout
@@ -83,13 +86,14 @@ class TopicPopupWidget(QWidget):
                 self.layout().removeItem(item)
 
             # create a new viewer
-            self._viewer = self._viewer_type(self._timeline, self, self._topic)
+            self._viewer = self._viewer_type(self._timeline, self, self._topics)
 
         super(TopicPopupWidget, self).show()
 
     def connect(self, context):
             if not self._is_listening:
-                self._timeline.add_listener(self._topic, self._viewer)
+                for topic in self._topics:
+                    self._timeline.add_listener(topic, self._viewer)
                 self._is_listening = True
 
             self._connected = True
@@ -258,7 +262,7 @@ class TimelinePopupMenu(QMenu):
             popup_name = topic + '__' + action.text()
             if popup_name not in self.timeline.popups:
                 frame = TopicPopupWidget(popup_name, self.timeline,
-                                         action.data(), str(topic))
+                                         action.data(), [str(topic)])
 
                 self.timeline.add_view(topic, frame)
                 self.timeline.popups[popup_name] = frame

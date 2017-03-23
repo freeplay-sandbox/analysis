@@ -144,20 +144,19 @@ class BagWidget(QWidget):
                 widget = TopicPopupWidget(popup_name.strip("/").split("/")[0], 
                                           self._timeline,
                                           type_viewer,
-                                          str(topic))
+                                          [str(topic)])
 
                 self._timeline.add_view(topic, widget)
                 self._timeline.popups[popup_name] = widget
                 widget.show(self._timeline.get_context())
                 ####
         
-        topic = "/tf"
+        topics = ["/tf", "/zones"]
         widget = TopicPopupWidget("Sandtray", 
                                   self._timeline,
                                   SandtrayView,
-                                  topic)
+                                  topics)
 
-        self._timeline.add_view(topic, widget)
         self._timeline.popups["sandtray"] = widget
         widget.show(self._timeline.get_context())
 
@@ -280,7 +279,7 @@ class BagWidget(QWidget):
         self.status_label.setText("")
 
         for popup_name, frame in self._timeline.popups.items():
-            qWarning("Connecting monitor %s to topic %s" % (popup_name, frame._topic))
+            qWarning("Connecting monitor %s to topic %s" % (popup_name, str(frame._topics)))
             frame.connect(self._timeline.get_context())
 
     def _handle_save_clicked(self):

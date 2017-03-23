@@ -24,8 +24,8 @@ from python_qt_binding.QtWidgets import QGraphicsScene, QGraphicsView
 class SandtrayView(TopicMessageView):
     name = 'Sandtray'
 
-    def __init__(self, timeline, parent, topic):
-        super(SandtrayView, self).__init__(timeline, parent, topic)
+    def __init__(self, timeline, parent, topics):
+        super(SandtrayView, self).__init__(timeline, parent, topics[0])
 
         self._items = {}
 

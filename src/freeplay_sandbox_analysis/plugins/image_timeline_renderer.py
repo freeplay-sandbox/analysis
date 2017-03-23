@@ -56,7 +56,7 @@ class ImageTimelineRenderer(TimelineRenderer):
     """
     Draws thumbnails of sensor_msgs/Image or sensor_msgs/CompressedImage in the timeline.
     """
-    def __init__(self, timeline, thumbnail_height=160):
+    def __init__(self, timeline, thumbnail_height=60):
         super(ImageTimelineRenderer, self).__init__(timeline, msg_combine_px=40.0)
 
         self.thumbnail_height = thumbnail_height

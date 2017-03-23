@@ -221,6 +221,7 @@ class BagWidget(QWidget):
 
         bag = rosbag.Bag(filename)
         self.status_label.setText("Parsing %s..." % filename)
+
         self._timeline.add_bag(bag)
         self.play_button.setEnabled(True)
         self.zoom_all_button.setEnabled(True)

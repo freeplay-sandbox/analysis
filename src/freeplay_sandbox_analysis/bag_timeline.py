@@ -153,6 +153,7 @@ class BagTimeline(QGraphicsScene):
             self._playhead_positions_cvs[topic] = threading.Condition()
             self._messages_cvs[topic] = threading.Condition()
             self._message_loaders[topic] = MessageLoaderThread(self, topic)
+            self._timeline_frame._rendered_topics.add(topic)
 
         self._timeline_frame._start_stamp = self._get_start_stamp()
         self._timeline_frame._end_stamp = self._get_end_stamp()

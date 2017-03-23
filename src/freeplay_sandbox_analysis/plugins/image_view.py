@@ -45,6 +45,7 @@ from PIL.ImageQt import ImageQt
 from .topic_message_view import TopicMessageView
 import image_helper
 
+from python_qt_binding.QtCore import Qt
 from python_qt_binding.QtGui import QPixmap
 from python_qt_binding.QtWidgets import QGraphicsScene, QGraphicsView
 
@@ -72,13 +73,13 @@ class ImageView(TopicMessageView):
         self._image_view.resizeEvent = self._resizeEvent
         self._scene = QGraphicsScene()
         self._image_view.setScene(self._scene)
+        self._image_view.fitInView(self._scene.itemsBoundingRect(), Qt.KeepAspectRatio)
+
         parent.layout().addWidget(self._image_view)
 
     # MessageView implementation
     def _resizeEvent(self, event):
-        # TODO make this smarter. currently there will be no scrollbar even if the timeline extends beyond the viewable area
-        self._scene.setSceneRect(0, 0, self._image_view.size().width() - 2, self._image_view.size().height() - 2)
-        self.put_image_into_scene()
+        self._image_view.fitInView(self._scene.itemsBoundingRect(), Qt.KeepAspectRatio)
 
     def message_viewed(self, bag, msg_details):
         """
@@ -98,9 +99,7 @@ class ImageView(TopicMessageView):
     # End MessageView implementation
     def put_image_into_scene(self):
         if self._image:
-            resized_image = self._image.resize((self._image_view.size().width() - 2, self._image_view.size().height() - 2), self.quality)
-
-            QtImage = ImageQt(resized_image)
+            QtImage = ImageQt(self._image)
             pixmap = QPixmap.fromImage(QtImage)
             self._scene.clear()
             self._scene.addPixmap(pixmap)

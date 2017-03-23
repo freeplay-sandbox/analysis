@@ -47,8 +47,8 @@ def imgmsg_to_pil(img_msg, rgba=True):
     try:
         if img_msg._type == 'sensor_msgs/CompressedImage':
             pil_img = Image.open(StringIO(img_msg.data))
-            if pil_img.mode != 'L':
-                pil_img = pil_bgr2rgb(pil_img)
+            #if pil_img.mode != 'L':
+                #pil_img = pil_bgr2rgb(pil_img)
         else:
             alpha = False
             pil_mode = 'RGB'

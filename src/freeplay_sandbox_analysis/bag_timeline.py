@@ -150,6 +150,7 @@ class BagTimeline(QGraphicsScene):
         new_topics = set(bag_topics) - set(self._timeline_frame.topics)
 
         for topic in new_topics:
+            qWarning("Adding topic %s" % topic)
             self._playhead_positions_cvs[topic] = threading.Condition()
             self._messages_cvs[topic] = threading.Condition()
             self._message_loaders[topic] = MessageLoaderThread(self, topic)

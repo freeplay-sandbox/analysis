@@ -131,14 +131,16 @@ class BagWidget(QWidget):
 
         self._timeline.status_bar_changed_signal.connect(self._update_status_bar)
 
-        #####
+        ##### Add the monitors
+        #######################
+
         for topic in FREEPLAYSANDBOX_TOPICS:
             if "camera" in topic:
                 type_viewer = ImageView
 
                 popup_name = topic + '__' + type_viewer.name
                 #if popup_name not in self._timeline.popups:
-                widget = TopicPopupWidget(popup_name, 
+                widget = TopicPopupWidget(popup_name.strip("/").split("/")[0], 
                                           self._timeline,
                                           type_viewer,
                                           str(topic))

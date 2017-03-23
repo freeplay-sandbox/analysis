@@ -17,15 +17,22 @@ class SandtrayItem(QGraphicsItem):
 
         self._bg_color = QColor(179, 179, 179, 25)
         self._fg_color = QColor(204, 204, 204, 102)
-        self._item_color = QColor(204, 0, 0, 255)
+        self._item_color = QColor(204, 0, 100, 255)
         self._cube_color = QColor(204, 100, 0, 255)
         self._border_color = QColor(0, 0, 0, 102)
+
+        self._time_font_size = 10.0
+        self._time_font = QFont("cairo")
+        self._time_font.setPointSize(self._time_font_size)
+        self._time_font.setBold(False)
 
     # QGraphicsItem implementation
     def boundingRect(self):
         return QRectF(0, 0, SandtrayItem.length * SandtrayItem.scale, SandtrayItem.width * SandtrayItem.scale)
 
     def paint(self, painter, option, widget):
+
+        painter.setFont(self._time_font)
 
         painter.fillRect(0, 0, 
                          SandtrayItem.length * SandtrayItem.scale, 
@@ -37,14 +44,19 @@ class SandtrayItem(QGraphicsItem):
         painter.drawRect(0, 0, SandtrayItem.length * SandtrayItem.scale, SandtrayItem.width * SandtrayItem.scale)
 
         for label, pos in self._items.items():
+
+            x, y = pos[0] * SandtrayItem.scale, pos[1] * SandtrayItem.scale
+
+            painter.drawText(x - 10, y - 10, label)
+
             if "cube" in label:
                 painter.setBrush(QBrush(self._cube_color))
-                painter.drawRect(pos[0] * SandtrayItem.scale - 5, 
-                                 pos[1] * SandtrayItem.scale - 5,
+                painter.drawRect(x - 5, 
+                                 y - 5,
                                  10, 10)
             else:
                 painter.setBrush(QBrush(self._item_color))
-                painter.drawEllipse(QPointF(pos[0] * SandtrayItem.scale, pos[1] * SandtrayItem.scale), 10, 10)
+                painter.drawEllipse(QPointF(x,y), 10, 10)
 
     def update(self, items):
         self._items = items

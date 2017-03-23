@@ -57,6 +57,7 @@ from .bag_timeline import BagTimeline
 
 from .timeline_menu import TopicPopupWidget
 from plugins.image_view import ImageView
+from plugins.sandtray_view import SandtrayView
 
 
 
@@ -149,6 +150,16 @@ class BagWidget(QWidget):
                 self._timeline.popups[popup_name] = widget
                 widget.show(self._timeline.get_context())
                 ####
+        
+        topic = "/tf"
+        widget = TopicPopupWidget("Sandtray", 
+                                  self._timeline,
+                                  SandtrayView,
+                                  topic)
+
+        self._timeline.add_view(topic, widget)
+        self._timeline.popups["sandtray"] = widget
+        widget.show(self._timeline.get_context())
 
     def graphics_view_on_key_press(self, event):
         key = event.key()
@@ -269,7 +280,7 @@ class BagWidget(QWidget):
         self.status_label.setText("")
 
         for popup_name, frame in self._timeline.popups.items():
-            # make all popups visible
+            qWarning("Connecting monitor %s to topic %s" % (popup_name, frame._topic))
             frame.connect(self._timeline.get_context())
 
     def _handle_save_clicked(self):

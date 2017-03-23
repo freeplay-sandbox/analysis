@@ -43,6 +43,7 @@ import threading
 from .index_cache_thread import IndexCacheThread
 from .plugins.raw_view import RawView
 from .plugins.image_plugin import ImagePlugin
+from .plugins.sandtray_plugin import SandtrayPlugin
 
 import bag_widget
 FREEPLAYSANDBOX_TOPICS = bag_widget.FREEPLAYSANDBOX_TOPICS
@@ -223,7 +224,7 @@ class TimelineFrame(QGraphicsItem):
                 self.translate_timeline(-dstamp)
 
             # Update the playhead positions
-            for topic in FREEPLAYSANDBOX_TOPICS:
+            for topic in self.topics:
                 bag, entry = self.scene().get_entry(self._playhead, topic)
                 if entry:
                     if topic in self.scene()._playhead_positions and self.scene()._playhead_positions[topic] == (bag, entry.position):
@@ -690,7 +691,7 @@ class TimelineFrame(QGraphicsItem):
 
     def load_plugins(self):
 
-        for plugin in [ImagePlugin()]:
+        for plugin in [ImagePlugin(), SandtrayPlugin()]:
 
             view = plugin.get_view_class()
             timeline_renderer = plugin.get_renderer_class()

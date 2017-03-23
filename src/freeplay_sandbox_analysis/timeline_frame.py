@@ -42,6 +42,7 @@ import threading
 
 from .index_cache_thread import IndexCacheThread
 from .plugins.raw_view import RawView
+from .plugins.image_plugin import ImagePlugin
 
 
 class _SelectionMode(object):
@@ -673,47 +674,19 @@ class TimelineFrame(QGraphicsItem):
         return [RawView] + self._viewer_types.get('*', []) + self._viewer_types.get(datatype, [])
 
     def load_plugins(self):
-        from rqt_gui.rospkg_plugin_provider import RospkgPluginProvider
-        self.plugin_provider = RospkgPluginProvider('rqt_bag', 'rqt_bag::Plugin')
 
-        plugin_descriptors = self.plugin_provider.discover(None)
-        for plugin_descriptor in plugin_descriptors:
-            try:
-                plugin = self.plugin_provider.load(plugin_descriptor.plugin_id(), plugin_context=None)
-            except Exception as e:
-                qWarning('rqt_bag.TimelineFrame.load_plugins() failed to load plugin "%s":\n%s' % (plugin_descriptor.plugin_id(), e))
-                continue
-            try:
-                view = plugin.get_view_class()
-            except Exception as e:
-                qWarning('rqt_bag.TimelineFrame.load_plugins() failed to get view from plugin "%s":\n%s' % (plugin_descriptor.plugin_id(), e))
-                continue
+        for plugin in [ImagePlugin()]:
 
-            timeline_renderer = None
-            try:
-                timeline_renderer = plugin.get_renderer_class()
-            except AttributeError:
-                pass
-            except Exception as e:
-                qWarning('rqt_bag.TimelineFrame.load_plugins() failed to get renderer from plugin "%s":\n%s' % (plugin_descriptor.plugin_id(), e))
-
-            msg_types = []
-            try:
-                msg_types = plugin.get_message_types()
-            except AttributeError:
-                pass
-            except Exception as e:
-                qWarning('rqt_bag.TimelineFrame.load_plugins() failed to get message types from plugin "%s":\n%s' % (plugin_descriptor.plugin_id(), e))
-            finally:
-                if not msg_types:
-                    qWarning('rqt_bag.TimelineFrame.load_plugins() plugin "%s" declares no message types:\n%s' % (plugin_descriptor.plugin_id(), e))
+            view = plugin.get_view_class()
+            timeline_renderer = plugin.get_renderer_class()
+            msg_types = plugin.get_message_types()
 
             for msg_type in msg_types:
                 self._viewer_types.setdefault(msg_type, []).append(view)
                 if timeline_renderer:
                     self._timeline_renderers[msg_type] = timeline_renderer(self)
 
-            qDebug('rqt_bag.TimelineFrame.load_plugins() loaded plugin "%s"' % plugin_descriptor.plugin_id())
+            qWarning('Loaded plugin %s' % view.name)
 
     # Timeline renderer interaction functions
 

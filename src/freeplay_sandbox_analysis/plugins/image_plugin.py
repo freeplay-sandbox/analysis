@@ -30,31 +30,22 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+from .plugin import Plugin
 
-class Plugin(object):
+from .image_timeline_renderer import ImageTimelineRenderer
+from .image_view import ImageView
 
-    """
-    Interface for freeplay_sandbox_analysis plugins.
-    User-defined plugins may either subclass `freeplay_sandbox_analysis.plugin.Plugin` or according to duck typing implement only the needed methods.
-    """
+
+class ImagePlugin(Plugin):
 
     def __init__(self):
         pass
 
     def get_view_class(self):
-        """Return a class which is a child of freeplay_sandbox_analysis.plugin.topic_message_view.TopicMessageView."""
-        raise NotImplementedError()
+        return ImageView
 
     def get_renderer_class(self):
-        """
-        Return a class which is a child of freeplay_sandbox_analysis.plugin.timeline_renderer.TimelineRenderer.
-        To omit the renderer component simply return None.
-        """
-        return None
+        return ImageTimelineRenderer
 
     def get_message_types(self):
-        """
-        Return  alist of message types which this plugin operates on.
-        To allow your plugin to be run on all message types return ['*'].
-        """
-        return []
+        return ['sensor_msgs/Image', 'sensor_msgs/CompressedImage']

@@ -16,8 +16,8 @@ import image_helper
 
 from .sandtray_item import SandtrayItem
 
-from python_qt_binding.QtCore import Qt
-from python_qt_binding.QtGui import QPixmap
+from python_qt_binding.QtCore import Qt, QPointF
+from python_qt_binding.QtGui import QPixmap, QColor
 from python_qt_binding.QtWidgets import QGraphicsScene, QGraphicsView
 
 
@@ -57,16 +57,31 @@ class SandtrayView(TopicMessageView):
         TopicMessageView.message_viewed(self, bag, msg_details)
         topic, msg, t = msg_details[:3]
         if msg:
-            for t in msg.transforms:
-                if t.header.frame_id == "sandtray":
-                    self._items[t.child_frame_id] = t.transform.translation.x, -t.transform.translation.y
-            self._sandtray.update(self._items)
+            if topic == "/zones":
+                self._sandtray.update_zones(self._get_zones(msg))
+            else:
+                for t in msg.transforms:
+                    if t.header.frame_id == "sandtray":
+                        self._items[t.child_frame_id] = t.transform.translation.x, -t.transform.translation.y
+                self._sandtray.update(self._items)
 
     def message_cleared(self):
         TopicMessageView.message_cleared(self)
         self.set_image(None, None, None)
 
     # End MessageView implementation
+
+    def _get_zones(self, msg):
+        zones = {}
+
+        for marker in msg.markers:
+            polygon = []
+            color = QColor(255*marker.color.r, 255*marker.color.g, 255*marker.color.b, 255*marker.color.a)
+            for p in marker.points:
+                polygon.append(QPointF(p.x * SandtrayItem.scale, -p.y * SandtrayItem.scale))
+            zones.setdefault(color, []).append(polygon)
+
+        return zones
 
     def put_image_into_scene(self):
         if self._image:

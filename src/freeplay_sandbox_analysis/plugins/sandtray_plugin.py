@@ -16,4 +16,4 @@ class SandtrayPlugin(Plugin):
         return None
 
     def get_message_types(self):
-        return ['tf2_msgs/TFMessage', 'tf_msgs/TFMessage']
+        return ['tf2_msgs/TFMessage', 'tf_msgs/TFMessage', 'visualization_msgs/MarkerArray']

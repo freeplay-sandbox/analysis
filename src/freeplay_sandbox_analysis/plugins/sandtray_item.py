@@ -14,6 +14,7 @@ class SandtrayItem(QGraphicsItem):
         super(SandtrayItem, self).__init__()
 
         self._items = {}
+        self._zones = {}
 
         self._bg_color = QColor(179, 179, 179, 25)
         self._fg_color = QColor(204, 204, 204, 102)
@@ -39,6 +40,12 @@ class SandtrayItem(QGraphicsItem):
                          SandtrayItem.width * SandtrayItem.scale,
                          painter.background())
 
+        for color, polys in self._zones.items():
+            painter.setPen(QPen(color, 2))
+            for poly in polys:
+                painter.drawPolygon(QPolygonF(poly))
+
+
         painter.setBrush(QBrush(self._fg_color))
         painter.setPen(QPen(self._border_color, 1))
         painter.drawRect(0, 0, SandtrayItem.length * SandtrayItem.scale, SandtrayItem.width * SandtrayItem.scale)
@@ -58,7 +65,11 @@ class SandtrayItem(QGraphicsItem):
                 painter.setBrush(QBrush(self._item_color))
                 painter.drawEllipse(QPointF(x,y), 10, 10)
 
+    def update_zones(self, zones):
+        self._zones = zones
+        super(SandtrayItem, self).update()
+
     def update(self, items):
         self._items = items
-
         super(SandtrayItem, self).update()
+

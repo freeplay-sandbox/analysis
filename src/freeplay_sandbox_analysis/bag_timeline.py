@@ -47,7 +47,6 @@ from .message_loader_thread import MessageLoaderThread
 from .player import Player
 from .timeline_menu import TimelinePopupMenu
 
-
 class BagTimeline(QGraphicsScene):
     """
     BagTimeline contains bag files, all information required to display the bag data visualization on the screen
@@ -143,7 +142,8 @@ class BagTimeline(QGraphicsScene):
         fixes the boarders and notifies the indexing thread to index the new items bags
         :param bag: ros bag file, ''rosbag.bag''
         """
-        self._bags.append(bag)
+
+        self._bags = [bag] # actually, only *one* bag can be used at a time (contrary to original rqt_bag)
 
         bag_topics = bag_helper.get_topics(bag)
 
@@ -153,12 +153,13 @@ class BagTimeline(QGraphicsScene):
             self._playhead_positions_cvs[topic] = threading.Condition()
             self._messages_cvs[topic] = threading.Condition()
             self._message_loaders[topic] = MessageLoaderThread(self, topic)
-            self._timeline_frame._rendered_topics.add(topic)
 
         self._timeline_frame._start_stamp = self._get_start_stamp()
         self._timeline_frame._end_stamp = self._get_end_stamp()
         self._timeline_frame.topics = self._get_topics()
         self._timeline_frame._topics_by_datatype = self._get_topics_by_datatype()
+        self._timeline_frame.set_renderers_active(True) # enable the thumbnails for image streams
+
         # If this is the first bag, reset the timeline
         if self._timeline_frame._stamp_left is None:
             self._timeline_frame.reset_timeline()

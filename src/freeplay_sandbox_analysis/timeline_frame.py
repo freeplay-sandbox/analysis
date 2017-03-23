@@ -44,6 +44,14 @@ from .index_cache_thread import IndexCacheThread
 from .plugins.raw_view import RawView
 from .plugins.image_plugin import ImagePlugin
 
+FREEPLAYSANDBOX_TOPICS = [
+        '/audio/audio',
+        '/env_camera/qhd/image_color/compressed',
+        'l_camera/rgb/image_raw/compressed',
+        'r_camera/rgb/image_raw/compressed',
+        ]
+
+
 
 class _SelectionMode(object):
     """
@@ -221,7 +229,7 @@ class TimelineFrame(QGraphicsItem):
                 self.translate_timeline(-dstamp)
 
             # Update the playhead positions
-            for topic in self.topics:
+            for topic in FREEPLAYSANDBOX_TOPICS:
                 bag, entry = self.scene().get_entry(self._playhead, topic)
                 if entry:
                     if topic in self.scene()._playhead_positions and self.scene()._playhead_positions[topic] == (bag, entry.position):
@@ -335,14 +343,14 @@ class TimelineFrame(QGraphicsItem):
         self._scene_width = self.scene().views()[0].size().width()
 
         max_topic_name_width = -1
-        for topic in self.topics:
+        for topic in FREEPLAYSANDBOX_TOPICS:
             topic_width = self._qfont_width(self._trimmed_topic_name(topic))
             if max_topic_name_width <= topic_width:
                 max_topic_name_width = topic_width
 
         # Calculate font height for each topic
         self._topic_font_height = -1
-        for topic in self.topics:
+        for topic in FREEPLAYSANDBOX_TOPICS:
             topic_height = QFontMetrics(self._topic_font).height()
             if self._topic_font_height <= topic_height:
                 self._topic_font_height = topic_height
@@ -356,7 +364,7 @@ class TimelineFrame(QGraphicsItem):
         # Calculate the bounds for each topic
         self._history_bounds = {}
         y = self._history_top
-        for topic in self.topics:
+        for topic in FREEPLAYSANDBOX_TOPICS:
             datatype = self.scene().get_datatype(topic)
 
             topic_height = None
@@ -488,7 +496,7 @@ class TimelineFrame(QGraphicsItem):
         clip_right = self._history_left + self._history_width
 
         row = 0
-        for topic in self.topics:
+        for topic in FREEPLAYSANDBOX_TOPICS:
             (x, y, w, h) = self._history_bounds[topic]
 
             if row % 2 == 0:
@@ -696,7 +704,7 @@ class TimelineFrame(QGraphicsItem):
         """
         renderers = []
 
-        for topic in self.topics:
+        for topic in FREEPLAYSANDBOX_TOPICS:
             datatype = self.scene().get_datatype(topic)
             renderer = self._timeline_renderers.get(datatype)
             if renderer is not None:
@@ -707,13 +715,13 @@ class TimelineFrame(QGraphicsItem):
         return topic in self._rendered_topics
 
     def toggle_renderers(self):
-        idle_renderers = len(self._rendered_topics) < len(self.topics)
+        idle_renderers = len(self._rendered_topics) < len(FREEPLAYSANDBOX_TOPICS)
 
         self.set_renderers_active(idle_renderers)
 
     def set_renderers_active(self, active):
         if active:
-            for topic in self.topics:
+            for topic in FREEPLAYSANDBOX_TOPICS:
                 self._rendered_topics.add(topic)
         else:
             self._rendered_topics.clear()

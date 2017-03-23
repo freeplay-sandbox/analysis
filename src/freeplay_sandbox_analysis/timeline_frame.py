@@ -435,38 +435,38 @@ class TimelineFrame(QGraphicsItem):
         datatype_color = self._datatype_colors.get(datatype, self._default_datatype_color)
         # Iterate through regions of connected messages
         width_interval = self._history_width / (self._stamp_right - self._stamp_left)
-
-        # Draw stamps
-        for (stamp_start, stamp_end) in self._find_regions(all_stamps[:end_index], self.map_dx_to_dstamp(self._default_msg_combine_px)):
-            if stamp_end < self._stamp_left:
-                continue
-
-            region_x_start = self._history_left + (stamp_start - self._stamp_left) * width_interval
-            if region_x_start < self._history_left:
-                region_x_start = self._history_left  # Clip the region
-            region_x_end = self._history_left + (stamp_end - self._stamp_left) * width_interval
-            region_width = max(1, region_x_end - region_x_start)
-
-            painter.setBrush(QBrush(datatype_color))
-            painter.setPen(QPen(datatype_color, 1))
-            painter.drawRect(region_x_start, msg_y, region_width, msg_height)
-
-        # Draw active message
-        if topic in self.scene()._listeners:
-            curpen = painter.pen()
-            oldwidth = curpen.width()
-            curpen.setWidth(self._active_message_line_width)
-            painter.setPen(curpen)
-            playhead_stamp = None
-            playhead_index = bisect.bisect_right(all_stamps, self.playhead.to_sec()) - 1
-            if playhead_index >= 0:
-                playhead_stamp = all_stamps[playhead_index]
-                if playhead_stamp > self._stamp_left and playhead_stamp < self._stamp_right:
-                    playhead_x = self._history_left + (all_stamps[playhead_index] - self._stamp_left) * width_interval
-                    painter.drawLine(playhead_x, msg_y, playhead_x, msg_y + msg_height)
-            curpen.setWidth(oldwidth)
-            painter.setPen(curpen)
-
+#
+#        # Draw stamps
+#        for (stamp_start, stamp_end) in self._find_regions(all_stamps[:end_index], self.map_dx_to_dstamp(self._default_msg_combine_px)):
+#            if stamp_end < self._stamp_left:
+#                continue
+#
+#            region_x_start = self._history_left + (stamp_start - self._stamp_left) * width_interval
+#            if region_x_start < self._history_left:
+#                region_x_start = self._history_left  # Clip the region
+#            region_x_end = self._history_left + (stamp_end - self._stamp_left) * width_interval
+#            region_width = max(1, region_x_end - region_x_start)
+#
+#            painter.setBrush(QBrush(datatype_color))
+#            painter.setPen(QPen(datatype_color, 1))
+#            painter.drawRect(region_x_start, msg_y, region_width, msg_height)
+#
+#        # Draw active message
+#        if topic in self.scene()._listeners:
+#            curpen = painter.pen()
+#            oldwidth = curpen.width()
+#            curpen.setWidth(self._active_message_line_width)
+#            painter.setPen(curpen)
+#            playhead_stamp = None
+#            playhead_index = bisect.bisect_right(all_stamps, self.playhead.to_sec()) - 1
+#            if playhead_index >= 0:
+#                playhead_stamp = all_stamps[playhead_index]
+#                if playhead_stamp > self._stamp_left and playhead_stamp < self._stamp_right:
+#                    playhead_x = self._history_left + (all_stamps[playhead_index] - self._stamp_left) * width_interval
+#                    painter.drawLine(playhead_x, msg_y, playhead_x, msg_y + msg_height)
+#            curpen.setWidth(oldwidth)
+#            painter.setPen(curpen)
+#
         # Custom renderer
         if renderer:
             # Iterate through regions of connected messages

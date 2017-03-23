@@ -44,14 +44,8 @@ from .index_cache_thread import IndexCacheThread
 from .plugins.raw_view import RawView
 from .plugins.image_plugin import ImagePlugin
 
-FREEPLAYSANDBOX_TOPICS = [
-        '/audio/audio',
-        '/env_camera/qhd/image_color/compressed',
-        'l_camera/rgb/image_raw/compressed',
-        'r_camera/rgb/image_raw/compressed',
-        ]
-
-
+import bag_widget
+FREEPLAYSANDBOX_TOPICS = bag_widget.FREEPLAYSANDBOX_TOPICS
 
 class _SelectionMode(object):
     """

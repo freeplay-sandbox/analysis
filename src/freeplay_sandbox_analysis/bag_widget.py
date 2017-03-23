@@ -42,8 +42,23 @@ from python_qt_binding.QtGui import QIcon
 from python_qt_binding.QtWidgets import QFileDialog, QGraphicsView, QWidget
 
 import rosbag
+
+
+FREEPLAYSANDBOX_TOPICS = [
+        '/audio/audio',
+        '/env_camera/qhd/image_color/compressed',
+        'l_camera/rgb/image_raw/compressed',
+        'r_camera/rgb/image_raw/compressed',
+        ]
+
+
 from freeplay_sandbox_analysis import bag_helper
 from .bag_timeline import BagTimeline
+
+from .timeline_menu import TopicPopupWidget
+from plugins.image_view import ImageView
+
+
 
 class BagGraphicsView(QGraphicsView):
     def __init__(self, parent=None):
@@ -115,6 +130,23 @@ class BagWidget(QWidget):
 
 
         self._timeline.status_bar_changed_signal.connect(self._update_status_bar)
+
+        #####
+        for topic in FREEPLAYSANDBOX_TOPICS:
+            if "camera" in topic:
+                type_viewer = ImageView
+
+                popup_name = topic + '__' + type_viewer.name
+                #if popup_name not in self._timeline.popups:
+                widget = TopicPopupWidget(popup_name, 
+                                          self._timeline,
+                                          type_viewer,
+                                          str(topic))
+
+                self._timeline.add_view(topic, widget)
+                self._timeline.popups[popup_name] = widget
+                widget.show(self._timeline.get_context())
+                ####
 
     def graphics_view_on_key_press(self, event):
         key = event.key()
@@ -233,6 +265,10 @@ class BagWidget(QWidget):
         self.end_button.setEnabled(True)
         qWarning("Done loading %s" % filename )
         self.status_label.setText("")
+
+        for popup_name, frame in self._timeline.popups.items():
+            # make all popups visible
+            frame.connect(self._timeline.get_context())
 
     def _handle_save_clicked(self):
         filename = QFileDialog.getSaveFileName(self, self.tr('Save selected region to file...'), '.', self.tr('Bag files {.bag} (*.bag)'))

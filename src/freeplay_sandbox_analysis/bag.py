@@ -77,7 +77,7 @@ class Bag(Plugin):
 
     @staticmethod
     def add_arguments(parser):
-        group = parser.add_argument_group('Options for rqt_bag plugin')
+        group = parser.add_argument_group('Options for freeplay_sandbox_analysis plugin')
         group.add_argument('--clock', action='store_true', help='publish the clock time')
         group.add_argument('bagfiles', type=lambda x: Bag._isfile(parser, x),
                            nargs='*', default=[], help='Bagfiles to load')

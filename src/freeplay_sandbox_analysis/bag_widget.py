@@ -42,9 +42,8 @@ from python_qt_binding.QtGui import QIcon
 from python_qt_binding.QtWidgets import QFileDialog, QGraphicsView, QWidget
 
 import rosbag
-from rqt_bag import bag_helper
+from freeplay_sandbox_analysis import bag_helper
 from .bag_timeline import BagTimeline
-from .topic_selection import TopicSelection
 
 class BagGraphicsView(QGraphicsView):
     def __init__(self, parent=None):

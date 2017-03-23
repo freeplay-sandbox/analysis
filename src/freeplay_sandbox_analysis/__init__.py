@@ -30,8 +30,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-from rqt_bag import bag_helper
-from rqt_bag.plugins.message_view       import MessageView
-from rqt_bag.plugins.topic_message_view import TopicMessageView
-from rqt_bag.plugins.timeline_renderer  import TimelineRenderer
-from rqt_bag.timeline_cache            import TimelineCache
+from freeplay_sandbox_analysis import bag_helper
+from freeplay_sandbox_analysis.plugins.message_view       import MessageView
+from freeplay_sandbox_analysis.plugins.topic_message_view import TopicMessageView
+from freeplay_sandbox_analysis.plugins.timeline_renderer  import TimelineRenderer
+from freeplay_sandbox_analysis.timeline_cache            import TimelineCache

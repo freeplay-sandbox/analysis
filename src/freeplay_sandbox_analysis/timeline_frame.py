@@ -298,10 +298,23 @@ class TimelineFrame(QGraphicsItem):
     def _qfont_width(self, name):
         return QFontMetrics(self._topic_font).width(name)
 
+    def _canonical_topic_name(self, topic_name):
+        """ Shorten the topic names for 'known' topics (cameras, audio...)
+        """
+        split_name = topic_name.split('/')
+        for token in split_name:
+            if "camera" in token:
+                return token
+            if "audio" in token:
+                return token
+        return topic_name
+
     def _trimmed_topic_name(self, topic_name):
         """
         This function trims the topic name down to a reasonable percentage of the viewable scene area
         """
+
+        topic_name = self._canonical_topic_name(topic_name)
         allowed_width = self._scene_width * (self._topic_name_max_percent / 100.0)
         allowed_width = allowed_width - self._topic_name_spacing - self._margin_left
         trimmed_return = topic_name

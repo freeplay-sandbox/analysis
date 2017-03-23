@@ -46,15 +46,16 @@ class TopicPopupWidget(QWidget):
         self._topic = topic
         self._viewer = None
         self._is_listening = False
+        self._connected = False # True when the record bag is effectively loaded
 
     def hideEvent(self, event):
-        if self._is_listening:
+        if self._connected and self._is_listening:
             self._timeline.remove_listener(self._topic, self._viewer)
             self._is_listening = False
         super(TopicPopupWidget, self).hideEvent(event)
 
     def showEvent(self, event):
-        if not self._is_listening:
+        if self._connected and not self._is_listening:
             self._timeline.add_listener(self._topic, self._viewer)
             self._is_listening = True
         super(TopicPopupWidget, self).showEvent(event)
@@ -83,11 +84,16 @@ class TopicPopupWidget(QWidget):
 
             # create a new viewer
             self._viewer = self._viewer_type(self._timeline, self, self._topic)
+
+        super(TopicPopupWidget, self).show()
+
+    def connect(self, context):
             if not self._is_listening:
                 self._timeline.add_listener(self._topic, self._viewer)
                 self._is_listening = True
 
-        super(TopicPopupWidget, self).show()
+            self._connected = True
+
 
 class TimelinePopupMenu(QMenu):
     """

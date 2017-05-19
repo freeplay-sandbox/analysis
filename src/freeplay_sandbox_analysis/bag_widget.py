@@ -45,10 +45,11 @@ import rosbag
 
 
 FREEPLAYSANDBOX_TOPICS = [
-        '/audio/audio',
-        '/env_camera/qhd/image_color/compressed',
-        'l_camera/rgb/image_raw/compressed',
-        'r_camera/rgb/image_raw/compressed',
+        'env_camera/qhd/image_color/compressed',
+        'camera_purple/rgb/image_raw/compressed',
+        'camera_purple/audio',
+        'camera_yellow/rgb/image_raw/compressed',
+        'camera_yellow/audio',
         ]
 
 

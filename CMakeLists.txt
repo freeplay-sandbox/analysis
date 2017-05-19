@@ -8,6 +8,9 @@ set(VERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPAC
 
 add_definitions(-std=c++11 -DFREEPLAY_ANALYSIS_VERSION=${VERSION})
 
+find_package(dlib REQUIRED)
+include_directories(${dlib_INCLUDE_DIRS})
+
 find_package(catkin REQUIRED COMPONENTS 
     roscpp
     rosbag
@@ -17,10 +20,10 @@ find_package(catkin REQUIRED COMPONENTS
     sensor_msgs
     cv_bridge
     gazr
+    image_geometry
     )
 
 include_directories(${catkin_INCLUDE_DIRS})
-
 
 catkin_package(
     CATKIN_DEPENDS rosbag
@@ -36,7 +39,7 @@ endif()
 include_directories(${OpenCV_INCLUDE_DIRS})
 
 add_executable(mutual_gaze_segmentation src/mutual_gaze_segmentation.cpp)
-target_link_libraries(mutual_gaze_segmentation ${catkin_LIBRARIES})
+target_link_libraries(mutual_gaze_segmentation ${dlib_LIBRARIES} ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})
 
 install(TARGETS mutual_gaze_segmentation
     ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}

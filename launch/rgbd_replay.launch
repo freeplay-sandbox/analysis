@@ -3,9 +3,10 @@
 
     <arg name="camera1"         default="camera_purple" />
     <arg name="camera2"         default="camera_yellow" />
-    <arg name="repub1"         default="participant_purple" />
-    <arg name="repub2"         default="participant_yellow" />
     <arg name="env_camera"      default="env_camera" />
+    <arg name="repub1"          default="$(arg camera1)_bag" />
+    <arg name="repub2"          default="$(arg camera2)_bag" />
+    <arg name="repub_env"       default="$(arg env_camera)_bag" />
 
     <param name="sandtray_description" command="$(find xacro)/xacro --inorder
                                                 $(find freeplay_sandbox)/urdf/sandtray.xacro
@@ -17,7 +18,7 @@
     <arg name="bag" />
 
     <arg name="loop" default="false" />
-    <arg name="keepalive" default="true" />
+    <arg name="keepalive" default="false" />
     <arg name="start" default="0" />
     <arg name="delay" default="0" />
     <arg name="rate" default="1.0" />
@@ -29,35 +30,33 @@
     <!-- Republish camera1 -->
     <node pkg="image_transport" type="republish" name="camera1_rgb_republish"
           required="true" output="screen"
-          args="compressed in:=$(arg camera1)/rgb/image_raw out:=$(arg repub1)/rgb/image_raw" />
+          args="compressed in:=$(arg repub1)/rgb/image_raw out:=$(arg camera1)/rgb/image_raw" />
 
     <node pkg="image_transport" type="republish" name="camera1_depth_republish"
           required="true" output="screen"
-          args="compressedDepth in:=$(arg camera1)/depth/image_raw out:=$(arg repub1)/depth/image_raw" />
+          args="compressedDepth in:=$(arg repub1)/depth/image_raw out:=$(arg camera1)/depth/image_raw" />
 
 
     <!-- Republish camera1 -->
     <node pkg="image_transport" type="republish" name="camera2_rgb_republish"
           required="true" output="screen"
-          args="compressed in:=$(arg camera2)/rgb/image_raw out:=$(arg repub2)/rgb/image_raw" />
+          args="compressed in:=$(arg repub2)/rgb/image_raw out:=$(arg camera2)/rgb/image_raw" />
 
     <node pkg="image_transport" type="republish" name="camera2_depth_republish"
           required="true" output="screen"
-          args="compressedDepth in:=$(arg camera2)/depth/image_raw out:=$(arg repub2)/depth/image_raw" />
+          args="compressedDepth in:=$(arg repub2)/depth/image_raw out:=$(arg camera2)/depth/image_raw" />
 
     <!-- Republish env_camera -->
     <node pkg="image_transport" type="republish" name="env_camera_rgb_republish"
           required="true" output="screen"
-          args="compressed in:=$(arg env_camera)/qhd/image_color out:=$(arg env_camera)/image" />
+          args="compressed in:=$(arg repub_env)/qhd/image_color out:=$(arg env_camera)/qhd/image_color" />
 
-      <arg name="camera_info_repub" default="
-                    $(arg camera1)/rgb/camera_info:=$(arg repub1)/rgb/camera_info
-                    $(arg camera1)/depth/camera_info:=$(arg repub1)/depth/camera_info
-                    $(arg camera1)/audio:=$(arg repub1)/audio
-                    $(arg camera2)/rgb/camera_info:=$(arg repub2)/rgb/camera_info
-                    $(arg camera2)/depth/camera_info:=$(arg repub2)/depth/camera_info
-                    $(arg camera2)/audio:=$(arg repub2)/audio
-                    $(arg env_camera)/qhd/camera_info:=$(arg env_camera)/image/camera_info
+    <arg name="camera_info_repub" default="
+                    $(arg camera1)/rgb/image_raw/compressed:=$(arg repub1)/rgb/image_raw/compressed
+                    $(arg camera1)/depth/image_raw/compressedDepth:=$(arg repub1)/depth/image_raw/compressedDepth
+                    $(arg camera2)/rgb/image_raw/compressed:=$(arg repub2)/rgb/image_raw/compressed
+                    $(arg camera2)/depth/image_raw/compressedDepth:=$(arg repub2)/depth/image_raw/compressedDepth
+                    $(arg env_camera)/qhd/image_color:=$(arg repub_env)/qhd/image_color
                     "/>
 
     <!-- Republish sandtray background -->
@@ -77,7 +76,7 @@
     <arg name="num_worker_threads" default="4" />
 
     <!-- Push down all topics/nodelets into "camera" namespace -->
-    <group ns="$(arg repub1)">
+    <group ns="$(arg camera1)">
 
         <!-- Start nodelet manager in provided namespace -->
         <arg name="manager" value="$(arg camera1)_nodelet_manager" />
@@ -109,7 +108,7 @@
     </group>
 
     <!-- Push down all topics/nodelets into "camera" namespace -->
-    <group ns="$(arg repub2)">
+    <group ns="$(arg camera2)">
 
         <!-- Start nodelet manager in provided namespace -->
         <arg name="manager" value="$(arg camera2)_nodelet_manager" />
@@ -141,7 +140,7 @@
     </group>
 
     <!-- manually republish the SR300 frames at high frequency -->
-    <node pkg="freeplay_sandbox" type="tf_replicator.py" name="tf_cameras_frames" output="screen" required="true" />
+    <node pkg="freeplay_sandbox_analysis" type="tf_camera_replicator" name="tf_cameras_frames" output="screen" required="true" />
 
     <!-- replay the bag file! -->
     <group if="$(arg loop)">

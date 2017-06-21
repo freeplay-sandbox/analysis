@@ -315,7 +315,7 @@ Visualization Manager:
       Size (Pixels): 3
       Size (m): 0.00170000002
       Style: Flat Squares
-      Topic: /participant_purple/depth_registered/points
+      Topic: /camera_purple/depth_registered/points
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
@@ -345,7 +345,7 @@ Visualization Manager:
       Size (Pixels): 3
       Size (m): 0.00200000009
       Style: Flat Squares
-      Topic: /participant_yellow/depth_registered/points
+      Topic: /camera_yellow/depth_registered/points
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
@@ -353,7 +353,7 @@ Visualization Manager:
     - Class: rviz/Camera
       Enabled: true
       Image Rendering: background and overlay
-      Image Topic: /participant_yellow/rgb/image_rect_color
+      Image Topic: /camera_yellow/rgb/image_rect_color
       Name: Yellow RGB
       Overlay Alpha: 0.5
       Queue Size: 2
@@ -379,7 +379,7 @@ Visualization Manager:
     - Class: rviz/Camera
       Enabled: true
       Image Rendering: background and overlay
-      Image Topic: /participant_purple/rgb/image_rect_color
+      Image Topic: /camera_purple/rgb/image_rect_color
       Name: Purple RGB
       Overlay Alpha: 0.5
       Queue Size: 2
@@ -405,7 +405,7 @@ Visualization Manager:
     - Class: rviz/Camera
       Enabled: true
       Image Rendering: background and overlay
-      Image Topic: /participant_yellow/depth_registered/sw_registered/image_rect
+      Image Topic: /camera_yellow/depth_registered/sw_registered/image_rect
       Name: Yellow depth (metric, rect)
       Overlay Alpha: 0.5
       Queue Size: 2
@@ -431,7 +431,7 @@ Visualization Manager:
     - Class: rviz/Camera
       Enabled: true
       Image Rendering: background and overlay
-      Image Topic: /participant_purple/depth_registered/sw_registered/image_rect
+      Image Topic: /camera_purple/depth_registered/sw_registered/image_rect
       Name: Purple depth (metric, rect)
       Overlay Alpha: 0.5
       Queue Size: 2
@@ -479,7 +479,7 @@ Visualization Manager:
       Size (Pixels): 3
       Size (m): 0.00499999989
       Style: Spheres
-      Topic: /participant_purple/facial_features
+      Topic: /camera_purple/facial_features
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
@@ -509,7 +509,7 @@ Visualization Manager:
       Size (Pixels): 3
       Size (m): 0.00499999989
       Style: Spheres
-      Topic: /participant_yellow/facial_features
+      Topic: /camera_yellow/facial_features
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true

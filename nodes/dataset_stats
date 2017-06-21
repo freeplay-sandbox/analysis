@@ -1,0 +1,71 @@
+#! /usr/bin/env python
+
+import sys
+import os
+import yaml
+from rosbag.bag import Bag
+
+CHILDCHILD = "childchild"
+CHILDROBOT = "childrobot"
+
+complete_dataset = []
+
+class Record:
+
+    def __init__(self, experiment, bagfile):
+        self.experiment = experiment
+        self.bagfile = bagfile
+
+        self.duration = self.bagfile["duration"]
+
+        self.cdt = self.experiment["condition"]
+        self.nb_children = (2 if self.cdt == CHILDCHILD else 1)
+
+        # total_child_duration is the total duration per child (ie, bag duration * nb of children recorded)
+        self.total_child_duration = self.duration * self.nb_children
+
+
+def processpath(path):
+
+    with open(os.path.join(path, "experiment.yaml"), 'r') as yml:
+        expe = yaml.load(yml)
+
+    bagpath =  os.path.join(path, "freeplay.bag")
+    if os.path.exists(bagpath):
+        yamlfile = os.path.join(path, "freeplay.bag.yaml")
+        if os.path.exists(yamlfile):
+            with open(yamlfile, 'r') as yml:
+                bagfile = yaml.load(yml)
+        else:
+            print("Found a freeplay.bag without YAML description. Parsing the bag <%s> now..." % bagpath)
+            bagfile = yaml.load(Bag(bagpath, 'r')._get_yaml_info())
+            with open(yamlfile, 'w') as outfile:
+                yaml.dump(info_dict, outfile, default_flow_style=False)
+                print("%s successfully saved." % yamlfile)
+
+        complete_dataset.append(Record(expe, bagfile))
+    else:
+        print("Missing freeplay.bag!!")
+
+if __name__ == "__main__":
+
+    for dirpath, dirs, files in os.walk(sys.argv[1], topdown=False):
+        for name in files:
+            fullpath = os.path.join(dirpath, name)
+            if name == "experiment.yaml":
+                print("Processing %s" % fullpath)
+                processpath(dirpath)
+
+    total_duration = 0
+    total_child_duration = 0
+    total_children = 0
+
+    for record in complete_dataset:
+        total_duration += record.duration
+        total_child_duration += record.total_child_duration
+        total_children += record.nb_children
+
+    print("Total records: %d" % len(complete_dataset))
+    print("Total duration: %02d:%02d:%02d" % (total_duration//3600,(total_duration%3600)//60, (total_duration%3600)%60))
+    print("Total children: %d" % total_children)
+    print("Total children duration: %02d:%02d:%02d" % (total_child_duration//3600,(total_duration%3600)//60, (total_duration%3600)%60))

@@ -47,7 +47,11 @@ install(TARGETS mutual_gaze_segmentation
     RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
-catkin_python_setup()
+catkin_install_python(PROGRAMS
+    nodes/analysis
+    nodes/dataset_stats
+    nodes/tf_camera_replicator
+    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
 install(FILES plugin.xml
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
@@ -55,10 +59,6 @@ install(FILES plugin.xml
 
 install(DIRECTORY resource
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-)
-
-install(PROGRAMS scripts/analysis
-  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
 install(DIRECTORY

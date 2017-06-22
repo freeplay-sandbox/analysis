@@ -19,6 +19,15 @@ The interface is heavily based on
 Other processings
 -----------------
 
+- to trim a bag file:
+
+Look for the start timestamp of the bag using `rosbag info` (or directly
+`freeplay.bag.yaml`), then
+
+```
+$ rosbag filter freeplay.bag freeplay.trimmed.bag "t.secs >= (<start time> + <secs to trim>)"
+```
+
 - to extract a video stream from one of the bag file and save it as a video:
 
 ```

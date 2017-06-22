@@ -61,8 +61,11 @@ class Record:
         self.cdt = self.experiment["condition"]
 
         self.children = [Child(self.experiment["purple-participant"])]
+        self.avg_age = self.children[0].age
+
         if self.cdt == CHILDCHILD:
             self.children.append(Child(self.experiment["yellow-participant"]))
+            self.avg_age = (self.children[0].age + self.children[1].age) / 2.0
 
         # total_child_duration is the total duration per child (ie, bag duration * nb of children recorded)
         self.total_child_duration = self.duration * len(self.children)
@@ -157,6 +160,21 @@ class Dataset:
         else:
             logging.warn("Missing freeplay.bag!!")
 
+    def filter(self, expr):
+
+        records = []
+
+        for r in self.dataset:
+            age = r.avg_age
+            duration = r.duration
+            cdt = r.cdt
+
+            if eval(expr):
+                records.append(r)
+
+        for r in records:
+            print(r.id)
+
     def write_csv(self, csvfile):
         writer = csv.writer(csvfile)
         writer.writerow(["condition", "duration", "age", "gender"])
@@ -177,6 +195,7 @@ if __name__ == "__main__":
     parser.add_argument("--check", action='store_true', help="parse and run checks on the dataset contents")
     parser.add_argument("-c", "--csv", nargs='?', type=argparse.FileType('wb'), default=False, const=sys.stdout, help="save the dataset statistics to the specified CSV file (default to stdout)")
     #parser.add_argument("-s", "--per-child", action='store_true', help="In combination with --csv, stores dataset statistics per child instead of per experiment")
+    parser.add_argument("-f", "--filter", nargs=1, help="output records that match the provided filter expression")
 
     args = parser.parse_args()
 
@@ -185,5 +204,7 @@ if __name__ == "__main__":
         dataset.write_csv(args.csv)
     elif args.check:
         dataset.check()
+    elif args.filter:
+        dataset.filter(args.filter[0])
     else:
         print(dataset)

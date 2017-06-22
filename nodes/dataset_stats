@@ -1,9 +1,26 @@
 #! /usr/bin/env python
 
+import argparse
 import sys
 import os
 import yaml
+import csv
 from rosbag.bag import Bag
+
+#         (topic name, short name, nominal expected publication rate)
+TOPICS = [("/tf", "tf", -1),
+          ("camera_purple/rgb/camera_info", "p/rgb/img", 30),
+          ("camera_purple/rgb/image_raw/compressed", "p/rgb/img", 30),
+          ("camera_yellow/rgb/camera_info", "y/rgb/info", 30),
+          ("camera_yellow/rgb/image_raw/compressed", "y/rgb/img", 30),
+          ("camera_purple/depth/camera_info", "p/dpth/info", 30),
+          ("camera_purple/depth/image_raw/compressedDepth", "p/dpth/img", 30),
+          ("camera_yellow/depth/camera_info", "y/dpth/info", 30),
+          ("camera_yellow/depth/image_raw/compressedDepth", "y/dpth/img", 30),
+          ("camera_purple/audio", "p/audio", 25),
+          ("camera_yellow/audio", "y/audio", 25),
+          ("env_camera/qhd/camera_info", "env/info", 30),
+          ("env_camera/qhd/image_color/compressed", "env/img", 30)]
 
 MALE = "male"
 FEMALE = "female"
@@ -13,6 +30,9 @@ CHILDROBOT = "childrobot"
 def hhmmss(sec):
     return "%02d:%02d:%02d" % (sec//3600,(sec%3600)//60, (sec%3600)%60)
 
+def mmss(sec):
+    return "%02d:%02d" % ((sec%3600)//60, (sec%3600)%60)
+
 class Child:
 
     def __init__(self, participant):
@@ -21,9 +41,15 @@ class Child:
         self.id = participant["id"]
         self.details = participant["details"]
 
+    def csvrow(self):
+        return [self.age, self.gender]
+
 class Record:
 
-    def __init__(self, experiment, bagfile):
+    def __init__(self,id, experiment, bagfile):
+
+        self.id = id
+
         self.experiment = experiment
         self.bagfile = bagfile
 
@@ -38,6 +64,40 @@ class Record:
         # total_child_duration is the total duration per child (ie, bag duration * nb of children recorded)
         self.total_child_duration = self.duration * len(self.children)
 
+    def getfreq(self, topic):
+        for t in self.bagfile["topics"]:
+            if t["topic"] == topic:
+                return t["frequency"]
+        #print("Bag file %s: missing frequency for topic %s" % (self.bagfile["path"], topic))
+        return 0
+
+    def check(self):
+
+        formats = "\x1b[37m" + self.id.split(os.sep)[-1] + "\x1b[0m " + mmss(self.duration) + " "
+        freqs = []
+        for t,n,r in TOPICS:
+            freq = self.getfreq(t)
+            freqs.append(freq)
+            if r > 0 and abs(freq - r) > 3:
+                formats += "\x1b[31m%10.1f\x1b[0m  "
+            else:
+                formats += "%10.1f  "
+
+        print(formats % tuple(freqs))
+
+
+    def csvrow(self):
+        return [self.cdt, self.duration] + self.children[0].csvrow() + (self.children[1].csvrow() if self.cdt == CHILDCHILD else ["",""])
+
+    def csvrow_perchild(self):
+        if self.cdt == CHILDCHILD:
+            return [
+                    [self.cdt, self.duration] + self.children[0].csvrow(),
+                    [self.cdt, self.duration] + self.children[1].csvrow()
+                   ]
+        else:
+            return [[self.cdt, self.duration] + self.children[0].csvrow()]
+
 class Dataset:
 
     def __init__(self, root):
@@ -48,6 +108,9 @@ class Dataset:
             for name in files:
                 fullpath = os.path.join(dirpath, name)
                 if name == "experiment.yaml":
+                    if dirpath.split(os.sep)[-1].startswith("exclude_"):
+                        print("%s has been excluded" % fullpath)
+                        continue
                     print("Processing %s" % fullpath)
                     self.processpath(dirpath)
 
@@ -84,14 +147,40 @@ class Dataset:
                 print("Found a freeplay.bag without YAML description. Parsing the bag <%s> now..." % bagpath)
                 bagfile = yaml.load(Bag(bagpath, 'r')._get_yaml_info())
                 with open(yamlfile, 'w') as outfile:
-                    yaml.dump(info_dict, outfile, default_flow_style=False)
+                    yaml.dump(bagfile, outfile, default_flow_style=False)
                     print("%s successfully saved." % yamlfile)
 
-            self.dataset.append(Record(expe, bagfile))
+            self.dataset.append(Record(path, expe, bagfile))
         else:
             print("Missing freeplay.bag!!")
 
+    def write_csv(self, csvfile):
+        writer = csv.writer(csvfile)
+        writer.writerow(["condition", "duration", "age", "gender"])
+        for r in self.dataset:
+            for row in r.csvrow_perchild():
+                writer.writerow(row)
+
+    def check(self):
+        print("\nPUBLICATION RATES (in Hz)")
+        print(" " * 23 + "   len " + " ".join(" " * (10 - len(n)) + n[:10] + " " for t,n,r in TOPICS))
+        for r in self.dataset:
+            r.check()
+
 if __name__ == "__main__":
 
-    dataset = Dataset(sys.argv[1])
-    print(dataset)
+    parser = argparse.ArgumentParser(description='Freeplay sandbox Dataset Statistics')
+    parser.add_argument("path", help="root path of the dataset -- recordings are recursively looked for from this path")
+    parser.add_argument("--check", action='store_true', help="parse and run checks on the dataset contents")
+    parser.add_argument("-c", "--csv", nargs='?', type=argparse.FileType('wb'), default=False, const=sys.stdout, help="save the dataset statistics to the specified CSV file (default to stdout)")
+    #parser.add_argument("-s", "--per-child", action='store_true', help="In combination with --csv, stores dataset statistics per child instead of per experiment")
+
+    args = parser.parse_args()
+
+    dataset = Dataset(args.path)
+    if args.csv:
+        dataset.write_csv(args.csv)
+    elif args.check:
+        dataset.check()
+    else:
+        print(dataset)

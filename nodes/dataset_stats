@@ -1,5 +1,8 @@
 #! /usr/bin/env python
 
+import logging
+logging.basicConfig(level=logging.WARN)
+
 import argparse
 import sys
 import os
@@ -68,7 +71,7 @@ class Record:
         for t in self.bagfile["topics"]:
             if t["topic"] == topic:
                 return t["frequency"]
-        #print("Bag file %s: missing frequency for topic %s" % (self.bagfile["path"], topic))
+        logging.debug("Bag file %s: missing frequency for topic %s" % (self.bagfile["path"], topic))
         return 0
 
     def check(self):
@@ -109,9 +112,9 @@ class Dataset:
                 fullpath = os.path.join(dirpath, name)
                 if name == "experiment.yaml":
                     if dirpath.split(os.sep)[-1].startswith("exclude_"):
-                        print("%s has been excluded" % fullpath)
+                        logging.info("%s has been excluded" % fullpath)
                         continue
-                    print("Processing %s" % fullpath)
+                    logging.debug("Processing %s" % fullpath)
                     self.processpath(dirpath)
 
         self.total_duration = 0
@@ -144,15 +147,15 @@ class Dataset:
                 with open(yamlfile, 'r') as yml:
                     bagfile = yaml.load(yml)
             else:
-                print("Found a freeplay.bag without YAML description. Parsing the bag <%s> now..." % bagpath)
+                logging.info("Found a freeplay.bag without YAML description. Parsing the bag <%s> now..." % bagpath)
                 bagfile = yaml.load(Bag(bagpath, 'r')._get_yaml_info())
                 with open(yamlfile, 'w') as outfile:
                     yaml.dump(bagfile, outfile, default_flow_style=False)
-                    print("%s successfully saved." % yamlfile)
+                    logging.debug("%s successfully saved." % yamlfile)
 
             self.dataset.append(Record(path, expe, bagfile))
         else:
-            print("Missing freeplay.bag!!")
+            logging.warn("Missing freeplay.bag!!")
 
     def write_csv(self, csvfile):
         writer = csv.writer(csvfile)

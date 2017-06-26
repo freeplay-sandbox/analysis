@@ -21,7 +21,7 @@
 #define STR_EXPAND(tok) #tok
 #define STR(tok) STR_EXPAND(tok)
 
-#define UPDATE_RATE 100 // update progress every X messages
+#define UPDATE_RATE 20 // update progress every X messages
 
 using namespace std;
 using namespace cv;
@@ -168,7 +168,7 @@ size_t estimate(HeadPoseEstimation& estimator, Mat frame) {
 }
 
 
-size_t process(HeadPoseEstimation& estimator, Mat rgb, Mat depth) {
+size_t process(const string& name, HeadPoseEstimation& estimator, Mat rgb, Mat depth) {
 
     //auto t_start = getTickCount();
 
@@ -181,6 +181,8 @@ size_t process(HeadPoseEstimation& estimator, Mat rgb, Mat depth) {
     Mat element = getStructuringElement(cv::MORPH_RECT, Size(31,31));
     dilate(depth, depth, element);
 
+    resize(depth, depth, rgb.size());
+
     Mat maskedImage;
     rgb.copyTo(maskedImage, depth);
 
@@ -189,8 +191,8 @@ size_t process(HeadPoseEstimation& estimator, Mat rgb, Mat depth) {
 
     //cout << "Time per frame: " << (t_end-t_start) / getTickFrequency() * 1000. << "ms (" << 1/((t_end-t_start) / getTickFrequency()) << "fps)" << endl;
     //imshow("Input RGB", rgb);
-    //imshow("Masked input", maskedImage);
-    //waitKey(1);
+    imshow(name, maskedImage);
+    waitKey(1);
 
     return estimate(estimator, maskedImage);
 
@@ -320,7 +322,7 @@ int main(int argc, char **argv) {
 
             if (!rgb_purple.empty() && !depth_purple.empty() && calibration_set) {
                 images_processed++;
-                auto nb_faces = process(estimator, rgb_purple, depth_purple);
+                auto nb_faces = process(CAMERA1, estimator, rgb_purple, depth_purple);
                 if (nb_faces != 0) {
                     faces_purple_seen++;
                     face_purple_seen = true;
@@ -342,7 +344,7 @@ int main(int argc, char **argv) {
 
             if (!rgb_yellow.empty() && !depth_yellow.empty() && calibration_set) {
                 images_processed++;
-                auto nb_faces = process(estimator, rgb_yellow, depth_yellow);
+                auto nb_faces = process(CAMERA2, estimator, rgb_yellow, depth_yellow);
                 if (nb_faces != 0) {
                     faces_yellow_seen++;
                     face_yellow_seen = true;
@@ -365,7 +367,7 @@ int main(int argc, char **argv) {
         last_face_purple_seen = face_purple_seen;
         last_face_yellow_seen = face_yellow_seen;
 
-        if (progress % UPDATE_RATE == 0) {
+        if (images_processed % UPDATE_RATE == 1) {
             auto t_intermediate = getTickCount();
             cout << "Done " << (int) (100. * images_processed)/(msgs[CAMERA1 + "/rgb/image_raw/compressed"] + msgs[CAMERA2 + "/rgb/image_raw/compressed"]) << "% (" << (images_processed) * 1/((t_intermediate-t_start) / getTickFrequency()) << " fps)" << endl;
             cout << "Faces seen on " << (faces_purple_seen + faces_yellow_seen) << " frames out of " << images_processed << " (" << (int) (100. * (faces_purple_seen + faces_yellow_seen))/images_processed << "%)" << endl;

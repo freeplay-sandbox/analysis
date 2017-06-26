@@ -11,6 +11,9 @@ add_definitions(-std=c++11 -DFREEPLAY_ANALYSIS_VERSION=${VERSION})
 find_package(dlib REQUIRED)
 include_directories(${dlib_INCLUDE_DIRS})
 
+find_package(yaml-cpp REQUIRED)
+include_directories(${YAML_CPP_INCLUDE_DIRS})
+
 find_package(catkin REQUIRED COMPONENTS 
     roscpp
     rosbag
@@ -41,7 +44,10 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 add_executable(mutual_gaze_segmentation src/mutual_gaze_segmentation.cpp)
 target_link_libraries(mutual_gaze_segmentation ${dlib_LIBRARIES} ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})
 
-install(TARGETS mutual_gaze_segmentation
+add_executable(faces_analysis src/faces_analysis.cpp)
+target_link_libraries(faces_analysis ${dlib_LIBRARIES} ${OpenCV_LIBRARIES} ${catkin_LIBRARIES} ${YAML_CPP_LIBRARIES})
+
+install(TARGETS mutual_gaze_segmentation faces_analysis
     ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

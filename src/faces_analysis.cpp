@@ -116,30 +116,30 @@ int main(int argc, char **argv) {
 
     int nb_images = 0;
     int nb_images_with_face = 0;
+    vector<int> multiples_faces_frames;
     int nb_msgs = 0;
     int last_percent=0;
     for(rosbag::MessageInstance const m : view)
     {
         nb_msgs++;
-//        if (m.getTopic() == purple_image_topic || ("/" + m.getTopic() == purple_image_topic))
-//        {
-            auto compressed_rgb = m.instantiate<sensor_msgs::CompressedImage>();
-            if (compressed_rgb != NULL) {
-                auto cvimg = imdecode(compressed_rgb->data,1);
-                auto res = estimator.update(cvimg);
-                if (res.size() > 0) {
-                    if(res.size() > 1) {
-                        cout << "Frame " << nb_images << " of topic " << m.getTopic() << ": Found more than one face!" << endl;
-                    }
-                    nb_images_with_face++;
-                }
 
-                nb_images++;
-                //if (show_frame) {
-                //    imshow("headpose", estimator._debug);
-                //    waitKey(10);
-                //}
-//            }
+        auto compressed_rgb = m.instantiate<sensor_msgs::CompressedImage>();
+        if (compressed_rgb != NULL) {
+            auto cvimg = imdecode(compressed_rgb->data,1);
+            auto res = estimator.update(cvimg);
+            if (res.size() > 0) {
+                if(res.size() > 1) {
+                    cout << "Frame " << nb_images << " of topic " << m.getTopic() << ": Found more than one face!" << endl;
+                    multiples_faces_frames.push_back(nb_msgs);
+                }
+                nb_images_with_face++;
+            }
+
+            nb_images++;
+            //if (show_frame) {
+            //    imshow("headpose", estimator._debug);
+            //    waitKey(10);
+            //}
 
         }
 
@@ -165,6 +165,7 @@ int main(int argc, char **argv) {
     }
     facesyaml["faces"][vm["topic"].as<string>()]["nb_frames"] = nb_images;
     facesyaml["faces"][vm["topic"].as<string>()]["nb_frames_with_face"] = nb_images_with_face;
+    facesyaml["faces"][vm["topic"].as<string>()]["multiple_faces"] = multiples_faces_frames;
     std::ofstream fout(vm["path"].as<string>() + "/faces.yaml");
     fout << facesyaml;
     bag.close();

@@ -30,6 +30,9 @@ FEMALE = "female"
 CHILDCHILD = "childchild"
 CHILDROBOT = "childrobot"
 
+istty = sys.stdout.isatty()
+
+
 def hhmmss(sec):
     return "%02d:%02d:%02d" % (sec//3600,(sec%3600)//60, (sec%3600)%60)
 
@@ -109,6 +112,9 @@ class Record:
         print(formats % tuple(freqs))
 
     def color_duration(self, duration):
+        if not istty:
+            return mmss(self.duration)
+
         if duration < 60 * 5:
             return "\x1b[31m%s\x1b[0m" % mmss(self.duration)
         if duration < 60 * 10:
@@ -120,19 +126,25 @@ class Record:
 
     def overview(self):
 
-        formats = "\x1b[37m" + self.id.split(os.sep)[-1] + "\x1b[0m "
+        formats = ("\x1b[37m" if istty else "") + self.id.split(os.sep)[-1] + ("\x1b[0m " if istty else " ")
         formats += self.color_duration(self.duration) + " "
-        if self.cdt == CHILDCHILD:
-            formats += "\x1b[38;2;214;150;150m%s" % self.cdt
+
+        if istty:
+            if self.cdt == CHILDCHILD:
+                formats += "\x1b[38;2;214;150;150m%s" % self.cdt
+            else:
+                formats += "\x1b[38;2;150;60;60m%s" % self.cdt
         else:
-            formats += "\x1b[38;2;150;60;60m%s" % self.cdt
+            formats += self.cdt
 
         formats += " %d %s  " % (self.children[0].age, self.children[0].gender[0])
         if self.cdt == CHILDCHILD:
             formats += " %d %s  " % (self.children[1].age, self.children[1].gender[0])
         else:
             formats += "      "
-        formats += "\x1b[0m"
+
+        if istty:
+            formats += "\x1b[0m"
 
         print(formats)
 
@@ -233,8 +245,13 @@ class Dataset:
 
         for r in self.dataset:
             age = r.avg_age
+            age1 = r.children[0].age
+            age2 = r.children[1].age if r.cdt == CHILDCHILD else 0
+            gender1 = r.children[0].gender
+            gender2 = r.children[1].gender if r.cdt == CHILDCHILD else ""
             duration = r.duration
             cdt = r.cdt
+            condition = r.cdt
 
             if eval(expr):
                 records.append(r)

@@ -108,6 +108,33 @@ class Record:
 
         print(formats % tuple(freqs))
 
+    def color_duration(self, duration):
+        if duration < 60 * 5:
+            return "\x1b[31m%s\x1b[0m" % mmss(self.duration)
+        if duration < 60 * 10:
+            return "\x1b[38;2;200;100;0m%s\x1b[0m" % mmss(self.duration)
+        if duration < 60 * 30:
+            return "\x1b[38;2;200;200;100m%s\x1b[0m" % mmss(self.duration)
+
+        return "\x1b[38;2;100;200;100m%s\x1b[0m" % mmss(self.duration)
+
+    def overview(self):
+
+        formats = "\x1b[37m" + self.id.split(os.sep)[-1] + "\x1b[0m "
+        formats += self.color_duration(self.duration) + " "
+        if self.cdt == CHILDCHILD:
+            formats += "\x1b[38;2;214;150;150m%s" % self.cdt
+        else:
+            formats += "\x1b[38;2;150;60;60m%s" % self.cdt
+
+        formats += " %d %s  " % (self.children[0].age, self.children[0].gender[0])
+        if self.cdt == CHILDCHILD:
+            formats += " %d %s  " % (self.children[1].age, self.children[1].gender[0])
+        else:
+            formats += "      "
+        formats += "\x1b[0m"
+
+        print(formats)
 
     def csvrow(self):
         return [self.cdt, self.duration] + self.children[0].csvrow() + (self.children[1].csvrow() if self.cdt == CHILDCHILD else ["",""])
@@ -153,15 +180,21 @@ class Dataset:
             elif record.cdt == CHILDROBOT:
                 self.nb_childrobot += 1
 
-    def __str__(self):
+    def overview(self):
 
-        return "Total records: %d" % len(self.dataset) + \
-               " (child-child: %d, child-robot: %d)\n" % (self.nb_childchild, self.nb_childrobot) + \
-               "Total duration: %s" % hhmmss(self.total_duration) + "\n" + \
-               "Average duration per record: %s" % hhmmss(self.total_duration/len(self.dataset)) + "\n" + \
-                "Total children: %d" % self.nb_children + "\n" + \
-                "Total children duration: %s" % hhmmss(self.total_child_duration) + "\n" + \
-                "Average duration per child: %s" % hhmmss(self.total_child_duration / self.nb_children)
+        print("\nOVERVIEW")
+        print("path" + " " * 19 + " len   condition  C1    C2")
+        for r in self.dataset:
+            r.overview()
+
+        print("\n")
+        print("Total records: %d" % len(self.dataset) + \
+              " (child-child: %d, child-robot: %d)\n" % (self.nb_childchild, self.nb_childrobot) + \
+              "Total duration: %s" % hhmmss(self.total_duration) + " -- " + \
+              "Average duration per record: %s" % hhmmss(self.total_duration/len(self.dataset)) + "\n\n" + \
+              "Total children: %d" % self.nb_children + "\n" + \
+              "Total children duration: %s" % hhmmss(self.total_child_duration) + " -- " + \
+              "Average duration per child: %s" % hhmmss(self.total_child_duration / self.nb_children))
 
     def processpath(self, path):
 
@@ -192,7 +225,7 @@ class Dataset:
             self.dataset.append(record)
 
         else:
-            logging.warn("Missing freeplay.bag!!")
+            logging.warn("%s: Missing freeplay.bag!!" % path)
 
     def filter(self, expr):
 
@@ -241,4 +274,4 @@ if __name__ == "__main__":
     elif args.filter:
         dataset.filter(args.filter[0])
     else:
-        print(dataset)
+        dataset.overview()

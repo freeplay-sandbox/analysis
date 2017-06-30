@@ -178,6 +178,8 @@ class Dataset:
 
         self.total_duration = 0
         self.total_child_duration = 0
+        self.total_childchild_duration = 0
+        self.total_childrobot_duration = 0
         self.nb_children = 0
         self.nb_childchild = 0
         self.nb_childrobot= 0
@@ -189,8 +191,10 @@ class Dataset:
             self.nb_children += len(record.children)
             if record.cdt == CHILDCHILD:
                 self.nb_childchild += 1
+                self.total_childchild_duration += record.duration
             elif record.cdt == CHILDROBOT:
                 self.nb_childrobot += 1
+                self.total_childrobot_duration += record.duration
 
     def overview(self):
 
@@ -203,8 +207,15 @@ class Dataset:
         print("Total records: %d" % len(self.dataset) + \
               " (child-child: %d, child-robot: %d)\n" % (self.nb_childchild, self.nb_childrobot) + \
               "Total duration: %s" % hhmmss(self.total_duration) + " -- " + \
-              "Average duration per record: %s" % hhmmss(self.total_duration/len(self.dataset)) + "\n\n" + \
-              "Total children: %d" % self.nb_children + "\n" + \
+              "Average duration per record: %s" % hhmmss(self.total_duration/len(self.dataset)) + "\n")
+
+        print("Total duration, child-child: %s" % hhmmss(self.total_childchild_duration) + " -- " + \
+              "Average duration per record, child-child: %s" % hhmmss(self.total_childchild_duration/self.nb_childchild) + "\n")
+
+        print("Total duration, child-robot: %s" % hhmmss(self.total_childrobot_duration) + " -- " + \
+              "Average duration per record, child-robot: %s" % hhmmss(self.total_childrobot_duration/self.nb_childrobot) + "\n")
+
+        print("Total children: %d" % self.nb_children + "\n" + \
               "Total children duration: %s" % hhmmss(self.total_child_duration) + " -- " + \
               "Average duration per child: %s" % hhmmss(self.total_child_duration / self.nb_children))
 

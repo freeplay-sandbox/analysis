@@ -54,7 +54,7 @@ class Child:
     def set_face_visibility(self, frames):
         self.nb_frames_visible = frames["nb_frames_with_face"]
         total_frames = frames["nb_frames"]
-        self.percent_visible = self.nb_frames_visible * 100. / total_frames
+        self.percent_visible = self.nb_frames_visible * 100. / total_frames if total_frames != 0 else 0
 
     def csvrow(self):
         return [self.age, self.gender, self.nb_frames_visible, self.percent_visible]

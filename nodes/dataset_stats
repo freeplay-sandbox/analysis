@@ -32,6 +32,8 @@ CHILDROBOT = "childrobot"
 
 istty = sys.stdout.isatty()
 
+def ddhhmmss(sec):
+    return "%dd %02d:%02d:%02d" % (sec//(3600*24), (sec%(3600*24))//3600,((sec%(3600*24))%3600)//60, ((sec%(3600*24))%3600)%60)
 
 def hhmmss(sec):
     return "%02d:%02d:%02d" % (sec//3600,(sec%3600)//60, (sec%3600)%60)
@@ -66,6 +68,7 @@ class Record:
         self.experiment = experiment
         self.bagfile = bagfile
 
+        self.start = self.bagfile["start"]
         self.duration = self.bagfile["duration"]
 
         self.cdt = self.experiment["condition"]
@@ -127,6 +130,7 @@ class Record:
     def overview(self):
 
         formats = ("\x1b[37m" if istty else "") + self.id.split(os.sep)[-1] + ("\x1b[0m " if istty else " ")
+        formats += "%d " % self.start
         formats += self.color_duration(self.duration) + " "
 
         if istty:
@@ -146,7 +150,7 @@ class Record:
         if istty:
             formats += "\x1b[0m"
 
-        print(formats)
+        return formats
 
     def csvrow(self):
         return [self.cdt, self.duration] + self.children[0].csvrow() + (self.children[1].csvrow() if self.cdt == CHILDCHILD else ["",""])
@@ -159,6 +163,9 @@ class Record:
                    ]
         else:
             return [[self.cdt, self.duration] + self.children[0].csvrow()]
+
+    def __repr__(self):
+        return self.id
 
 class Dataset:
 
@@ -175,6 +182,8 @@ class Dataset:
                         continue
                     logging.debug("Processing %s" % fullpath)
                     self.processpath(dirpath)
+
+        self.dataset.sort(key=lambda val: repr(val))
 
         self.total_duration = 0
         self.total_child_duration = 0
@@ -199,9 +208,18 @@ class Dataset:
     def overview(self):
 
         print("\nOVERVIEW")
-        print("path" + " " * 19 + " len   condition  C1    C2")
+        print("path" + " " * 19 + "  timestamp   len   condition  C1    C2")
+
+        prev_record = None
         for r in self.dataset:
-            r.overview()
+            sys.stdout.write(r.overview())
+            if prev_record:
+                #print(ddhhmmss(r.start - prev_record.start)) # prints time between previous record and current record
+                if r.start > prev_record.start and r.start - prev_record.start < 60 * 15: # 2 records with less than 15 min inbetween? suspicious!
+                    sys.stdout.write("<- suspiciously close to previous record (less than 15min)")
+            sys.stdout.write("\n")
+
+            prev_record = r
 
         print("\n")
         print("Total records: %d" % len(self.dataset) + \

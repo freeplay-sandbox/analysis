@@ -102,7 +102,7 @@ class Record:
 
     def check(self):
 
-        formats = "\x1b[37m" + self.id.split(os.sep)[-1] + "\x1b[0m " + mmss(self.duration) + " "
+        formats = "\x1b[37m" + self.id.split(os.sep)[-1] + "\x1b[0m " + ("CC " if self.cdt == CHILDCHILD else "CR ") + mmss(self.duration) + " "
         freqs = []
         for t,n,r in TOPICS:
             freq = self.getfreq(t)
@@ -297,7 +297,7 @@ class Dataset:
 
     def check(self):
         print("\nPUBLICATION RATES (in Hz)")
-        print(" " * 23 + "   len " + " ".join(" " * (10 - len(n)) + n[:10] + " " for t,n,r in TOPICS))
+        print(" " * 23 + "cdt   len " + " ".join(" " * (10 - len(n)) + n[:10] + " " for t,n,r in TOPICS))
         for r in self.dataset:
             r.check()
 

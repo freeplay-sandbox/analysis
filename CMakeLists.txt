@@ -8,8 +8,12 @@ set(VERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPAC
 
 add_definitions(-std=c++11 -DFREEPLAY_ANALYSIS_VERSION=${VERSION})
 
-find_package(dlib REQUIRED)
-include_directories(${dlib_INCLUDE_DIRS})
+find_package(Caffe REQUIRED)
+include_directories(${Caffe_INCLUDE_DIRS})
+
+find_package(PkgConfig REQUIRED)
+pkg_search_module(OPENPOSE REQUIRED openpose)
+include_directories(${OPENPOSE_INCLUDE_DIRS})
 
 find_package(yaml-cpp REQUIRED)
 include_directories(${YAML_CPP_INCLUDE_DIRS})
@@ -22,7 +26,6 @@ find_package(catkin REQUIRED COMPONENTS
     visualization_msgs
     sensor_msgs
     cv_bridge
-    gazr
     image_geometry
     )
 
@@ -42,7 +45,7 @@ endif()
 include_directories(${OpenCV_INCLUDE_DIRS})
 
 add_executable(mutual_gaze_segmentation src/mutual_gaze_segmentation.cpp)
-target_link_libraries(mutual_gaze_segmentation ${dlib_LIBRARIES} ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})
+target_link_libraries(mutual_gaze_segmentation ${Caffe_LIBRARIES} ${OPENPOSE_LIBRARIES} ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})
 
 add_executable(faces_analysis src/faces_analysis.cpp)
 target_link_libraries(faces_analysis ${dlib_LIBRARIES} ${OpenCV_LIBRARIES} ${catkin_LIBRARIES} ${YAML_CPP_LIBRARIES})

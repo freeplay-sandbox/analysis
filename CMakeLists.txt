@@ -10,10 +10,13 @@ add_definitions(-std=c++11 -DFREEPLAY_ANALYSIS_VERSION=${VERSION})
 
 find_package(Caffe REQUIRED)
 include_directories(${Caffe_INCLUDE_DIRS})
+add_definitions(-DUSE_CAFFE)
 
 find_package(PkgConfig REQUIRED)
 pkg_search_module(OPENPOSE REQUIRED openpose)
 include_directories(${OPENPOSE_INCLUDE_DIRS})
+link_directories(${OPENPOSE_LIBRARY_DIRS})
+
 
 find_package(yaml-cpp REQUIRED)
 include_directories(${YAML_CPP_INCLUDE_DIRS})
@@ -44,13 +47,14 @@ if(${OpenCV_VERSION} VERSION_GREATER 2.9.0)
 endif()
 include_directories(${OpenCV_INCLUDE_DIRS})
 
-add_executable(mutual_gaze_segmentation src/mutual_gaze_segmentation.cpp)
-target_link_libraries(mutual_gaze_segmentation ${Caffe_LIBRARIES} ${OPENPOSE_LIBRARIES} ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})
+#add_executable(mutual_gaze_segmentation src/mutual_gaze_segmentation.cpp)
+#target_link_libraries(mutual_gaze_segmentation ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})
 
 add_executable(faces_analysis src/faces_analysis.cpp)
-target_link_libraries(faces_analysis ${dlib_LIBRARIES} ${OpenCV_LIBRARIES} ${catkin_LIBRARIES} ${YAML_CPP_LIBRARIES})
+target_link_libraries(faces_analysis ${dlib_LIBRARIES} ${OpenCV_LIBRARIES} ${Caffe_LIBRARIES} ${OPENPOSE_LIBRARIES} ${catkin_LIBRARIES} ${YAML_CPP_LIBRARIES})
 
-install(TARGETS mutual_gaze_segmentation faces_analysis
+#install(TARGETS mutual_gaze_segmentation faces_analysis
+install(TARGETS faces_analysis
     ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

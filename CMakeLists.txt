@@ -51,10 +51,13 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 #target_link_libraries(mutual_gaze_segmentation ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})
 
 add_executable(faces_analysis src/faces_analysis.cpp)
-target_link_libraries(faces_analysis ${dlib_LIBRARIES} ${OpenCV_LIBRARIES} ${Caffe_LIBRARIES} ${OPENPOSE_LIBRARIES} ${catkin_LIBRARIES} ${YAML_CPP_LIBRARIES})
+target_link_libraries(faces_analysis ${OpenCV_LIBRARIES} ${Caffe_LIBRARIES} ${OPENPOSE_LIBRARIES} ${catkin_LIBRARIES} ${YAML_CPP_LIBRARIES})
+
+add_executable(replay_with_poses src/replay_with_poses.cpp)
+target_link_libraries(replay_with_poses ${OpenCV_LIBRARIES} ${catkin_LIBRARIES} ${YAML_CPP_LIBRARIES})
 
 #install(TARGETS mutual_gaze_segmentation faces_analysis
-install(TARGETS faces_analysis
+install(TARGETS faces_analysis replay_with_poses
     ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

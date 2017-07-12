@@ -113,15 +113,15 @@ YAML::Node makeYamlFrame(const opPosesKeypoints poses, const opFacesKeypoints fa
     YAML::Node node;
 
     const int NB_POSE_KEYPOINTS = 18; // COCO_18
-    const int NB_FACE_KEYPOINTS = 70; // COCO_18
-    const int NB_HAND_KEYPOINTS = 21; // COCO_18
+    const int NB_FACE_KEYPOINTS = 70;
+    const int NB_HAND_KEYPOINTS = 21;
 
     // pose
     for (int i = 0; i < poses.getSize(0); i++) {
         if(poses.getSize(1) != NB_POSE_KEYPOINTS) throw range_error("Unexpected number of pose keypoints!");
 
         for (int idx = 0; idx < NB_POSE_KEYPOINTS; idx++) {
-            node["poses"][i+1][idx+1] = std::vector<float>({poses.at({i,idx,0}), poses.at({i,idx,1}), poses.at({i,idx,2})});
+            node["poses"][i+1].push_back(std::vector<float>({poses.at({i,idx,0}), poses.at({i,idx,1}), poses.at({i,idx,2})}));
         }
     }
 
@@ -132,7 +132,7 @@ YAML::Node makeYamlFrame(const opPosesKeypoints poses, const opFacesKeypoints fa
             if(faces.getSize(1) != NB_FACE_KEYPOINTS) throw range_error("Unexpected number of face keypoints! Expected " + to_string(NB_FACE_KEYPOINTS) + ", got " + to_string(faces.getSize(1)));
 
             for (int idx = 0; idx < NB_FACE_KEYPOINTS; idx++) {
-                node["faces"][i+1][idx+1] = std::vector<float>({faces.at({i,idx,0}), faces.at({i,idx,1}), faces.at({i,idx,2})});
+                node["faces"][i+1].push_back(std::vector<float>({faces.at({i,idx,0}), faces.at({i,idx,1}), faces.at({i,idx,2})}));
             }
         }
     }
@@ -145,7 +145,7 @@ YAML::Node makeYamlFrame(const opPosesKeypoints poses, const opFacesKeypoints fa
 
 
             for (int idx = 0; idx < NB_HAND_KEYPOINTS; idx++) {
-                node["hands"]["left"][i+1][idx+1] = std::vector<float>({hands[0].at({i,idx,0}), hands[0].at({i,idx,1}), hands[0].at({i,idx,2})});
+                node["hands"][i+1]["left"].push_back(std::vector<float>({hands[0].at({i,idx,0}), hands[0].at({i,idx,1}), hands[0].at({i,idx,2})}));
             }
         }
 
@@ -154,11 +154,10 @@ YAML::Node makeYamlFrame(const opPosesKeypoints poses, const opFacesKeypoints fa
             if(hands[1].getSize(1) != NB_HAND_KEYPOINTS) throw("Unexpected number of right hand keypoints! Expected " + to_string(NB_HAND_KEYPOINTS) + ", got " + to_string(hands[1].getSize(1)));
 
             for (int idx = 0; idx < NB_HAND_KEYPOINTS; idx++) {
-                node["hands"]["right"][i+1][idx+1] = std::vector<float>({hands[1].at({i,idx,0}), hands[1].at({i,idx,1}), hands[1].at({i,idx,2})});
+                node["hands"][i+1]["right"].push_back(std::vector<float>({hands[1].at({i,idx,0}), hands[1].at({i,idx,1}), hands[1].at({i,idx,2})}));
             }
         }
     }
-
 
     return node;
     
@@ -342,7 +341,7 @@ int main(int argc, char **argv) {
     }
     
 
-    YAML::Node yamlNode = posesYaml[vm["topic"].as<string>()]["frames"];
+    YAML::Node yamlNode = posesYaml[topic]["frames"];
 
     auto nbAlreadyProcessed = yamlNode.size();
 
@@ -356,6 +355,7 @@ int main(int argc, char **argv) {
 
     size_t idx = 0;
 
+    cout << "Starting processing" << endl;
     for(rosbag::MessageInstance const m : view)
     {
         idx++;
@@ -417,7 +417,7 @@ int main(int argc, char **argv) {
     }
 
     std::ofstream fout(vm["path"].as<string>() + "/" + POSES_FILE);
-    fout << posesYaml;
+    fout  << posesYaml;
 
     bag.close();
 }

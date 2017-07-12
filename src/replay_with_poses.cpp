@@ -80,25 +80,25 @@ cv::Mat drawSkeleton(cv::Mat image, YAML::Node skel) {
             float confidence1 = skel[skel_idx][SKEL_SEGMENTS[i]+1][2].as<float>();
             if (confidence1 < SKEL_FEATURE_LOW_CONFIDENCE_THRESHOLD) continue;
 
-            Point2f p1(skel[skel_idx][SKEL_SEGMENTS[i]+1][0].as<float>(), skel[skel_idx][SKEL_SEGMENTS[i]+1][1].as<float>());
+            Point2f p1(skel[skel_idx][SKEL_SEGMENTS[i]][0].as<float>(), skel[skel_idx][SKEL_SEGMENTS[i]][1].as<float>());
 
-            float confidence2 = skel[skel_idx][SKEL_SEGMENTS[i+1]+1][2].as<float>();
+            float confidence2 = skel[skel_idx][SKEL_SEGMENTS[i+1]][2].as<float>();
             if (confidence2 < SKEL_FEATURE_LOW_CONFIDENCE_THRESHOLD) continue;
 
             bool highconfidence = (confidence1 > SKEL_FEATURE_HIGH_CONFIDENCE_THRESHOLD && confidence2 > SKEL_FEATURE_HIGH_CONFIDENCE_THRESHOLD); 
 
             int width = highconfidence ? 3 : 1;
 
-            Point2f p2(skel[skel_idx][SKEL_SEGMENTS[i+1]+1][0].as<float>(), skel[skel_idx][SKEL_SEGMENTS[i+1]+1][1].as<float>());
+            Point2f p2(skel[skel_idx][SKEL_SEGMENTS[i+1]][0].as<float>(), skel[skel_idx][SKEL_SEGMENTS[i+1]][1].as<float>());
 
             cv::line(image, p1, p2, Scalar(200,100,20), width, cv::LINE_AA);
         }
 
         for(size_t i = 0; i < NB_SKEL_FEATURES; i++) {
-            float confidence = skel[skel_idx][i+1][2].as<float>();
+            float confidence = skel[skel_idx][i][2].as<float>();
             if (confidence < SKEL_FEATURE_LOW_CONFIDENCE_THRESHOLD) continue;
 
-            Point2f p(skel[skel_idx][i+1][0].as<float>(), skel[skel_idx][i+1][1].as<float>());
+            Point2f p(skel[skel_idx][i][0].as<float>(), skel[skel_idx][i][1].as<float>());
             cv::circle(image, p, 5, Scalar(200,100,20), -1, cv::LINE_AA);
         }
     }
@@ -111,37 +111,29 @@ cv::Mat drawFace(cv::Mat image, YAML::Node face) {
     for(size_t face_idx = 1; face_idx <= face.size(); face_idx++) {
         for(size_t i = 0; i < FACE_SEGMENTS.size(); i+=2) {
 
-            float confidence1 = face[face_idx][FACE_SEGMENTS[i]+1][2].as<float>();
+            float confidence1 = face[face_idx][FACE_SEGMENTS[i]][2].as<float>();
             if (confidence1 < FACE_FEATURE_LOW_CONFIDENCE_THRESHOLD) continue;
 
-            Point2f p1(face[face_idx][FACE_SEGMENTS[i]+1][0].as<float>(), face[face_idx][FACE_SEGMENTS[i]+1][1].as<float>());
+            Point2f p1(face[face_idx][FACE_SEGMENTS[i]][0].as<float>(), face[face_idx][FACE_SEGMENTS[i]][1].as<float>());
 
-            float confidence2 = face[face_idx][FACE_SEGMENTS[i+1]+1][2].as<float>();
+            float confidence2 = face[face_idx][FACE_SEGMENTS[i+1]][2].as<float>();
             if (confidence2 < FACE_FEATURE_LOW_CONFIDENCE_THRESHOLD) continue;
 
             bool highconfidence = (confidence1 > FACE_FEATURE_HIGH_CONFIDENCE_THRESHOLD && confidence2 > FACE_FEATURE_HIGH_CONFIDENCE_THRESHOLD); 
 
             int width = highconfidence ? 2 : 1;
 
-            Point2f p2(face[face_idx][FACE_SEGMENTS[i+1]+1][0].as<float>(), face[face_idx][FACE_SEGMENTS[i+1]+1][1].as<float>());
+            Point2f p2(face[face_idx][FACE_SEGMENTS[i+1]][0].as<float>(), face[face_idx][FACE_SEGMENTS[i+1]][1].as<float>());
 
             cv::line(image, p1, p2, Scalar(20,100,200), width, cv::LINE_AA);
         }
 
-        //for(size_t i = 0; i < NB_FACE_FEATURES - 2; i++) {
-        //    float confidence = face[face_idx][i+1][2].as<float>();
-        //    if (confidence < FACE_FEATURE_CONFIDENCE_THRESHOLD) continue;
-
-        //    Point2f p(face[face_idx][i+1][0].as<float>(), face[face_idx][i+1][1].as<float>());
-        //    cv::circle(image, p, 2, Scalar(50,100,200), -1, cv::LINE_AA);
-        //}
-
         // pupils
         for(size_t i = 68; i < NB_FACE_FEATURES; i++) {
-            float confidence = face[face_idx][i+1][2].as<float>();
+            float confidence = face[face_idx][i][2].as<float>();
             if (confidence < PUPILS_CONFIDENCE_THRESHOLD) continue;
 
-            Point2f p(face[face_idx][i+1][0].as<float>(), face[face_idx][i+1][1].as<float>());
+            Point2f p(face[face_idx][i][0].as<float>(), face[face_idx][i][1].as<float>());
             cv::circle(image, p, 3, Scalar(50,200,100), 1, cv::LINE_AA);
         }
     }

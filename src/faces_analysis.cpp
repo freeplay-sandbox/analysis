@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <chrono> // `std::chrono::` functions and classes, e.g. std::chrono::milliseconds
 #include <string>
 #include <thread> // std::this_thread
@@ -25,7 +26,7 @@
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
 
-#include <yaml-cpp/yaml.h>
+#include "json/json.h"
 
 #include <openpose/headers.hpp>
 
@@ -38,7 +39,7 @@ namespace enc = sensor_msgs::image_encodings;
 namespace po = boost::program_options;
 
 
-const string POSES_FILE ("poses.yaml");
+const string POSES_FILE ("poses.json");
 
 /**
  * Format of poses.yaml:
@@ -108,9 +109,18 @@ typedef std::array<op::Array<float>, 2> opHandsKeypoints;
 const opFacesKeypoints NOFACES;
 const opHandsKeypoints NOHANDS{};
 
-YAML::Node makeYamlFrame(const opPosesKeypoints poses, const opFacesKeypoints faces, const opHandsKeypoints hands) {
+template <typename Iterable>
+Json::Value iterable2json(Iterable const& cont) {
+        Json::Value v;
+            for (auto&& element: cont) {
+                        v.append(element);
+                             }
+                 return v;
+}
 
-    YAML::Node node;
+Json::Value makePoseFrame(const opPosesKeypoints poses, const opFacesKeypoints faces, const opHandsKeypoints hands) {
+
+    Json::Value node;
 
     const int NB_POSE_KEYPOINTS = 18; // COCO_18
     const int NB_FACE_KEYPOINTS = 70;
@@ -121,7 +131,7 @@ YAML::Node makeYamlFrame(const opPosesKeypoints poses, const opFacesKeypoints fa
         if(poses.getSize(1) != NB_POSE_KEYPOINTS) throw range_error("Unexpected number of pose keypoints!");
 
         for (int idx = 0; idx < NB_POSE_KEYPOINTS; idx++) {
-            node["poses"][i+1].push_back(std::vector<float>({poses.at({i,idx,0}), poses.at({i,idx,1}), poses.at({i,idx,2})}));
+            node["poses"][to_string(i+1)][idx] = iterable2json(std::vector<float>({poses.at({i,idx,0}), poses.at({i,idx,1}), poses.at({i,idx,2})}));
         }
     }
 
@@ -132,7 +142,7 @@ YAML::Node makeYamlFrame(const opPosesKeypoints poses, const opFacesKeypoints fa
             if(faces.getSize(1) != NB_FACE_KEYPOINTS) throw range_error("Unexpected number of face keypoints! Expected " + to_string(NB_FACE_KEYPOINTS) + ", got " + to_string(faces.getSize(1)));
 
             for (int idx = 0; idx < NB_FACE_KEYPOINTS; idx++) {
-                node["faces"][i+1].push_back(std::vector<float>({faces.at({i,idx,0}), faces.at({i,idx,1}), faces.at({i,idx,2})}));
+                node["faces"][to_string(i+1)][idx] = iterable2json(std::vector<float>({faces.at({i,idx,0}), faces.at({i,idx,1}), faces.at({i,idx,2})}));
             }
         }
     }
@@ -145,7 +155,7 @@ YAML::Node makeYamlFrame(const opPosesKeypoints poses, const opFacesKeypoints fa
 
 
             for (int idx = 0; idx < NB_HAND_KEYPOINTS; idx++) {
-                node["hands"][i+1]["left"].push_back(std::vector<float>({hands[0].at({i,idx,0}), hands[0].at({i,idx,1}), hands[0].at({i,idx,2})}));
+                node["hands"][to_string(i+1)]["left"][idx] = iterable2json(std::vector<float>({hands[0].at({i,idx,0}), hands[0].at({i,idx,1}), hands[0].at({i,idx,2})}));
             }
         }
 
@@ -154,13 +164,12 @@ YAML::Node makeYamlFrame(const opPosesKeypoints poses, const opFacesKeypoints fa
             if(hands[1].getSize(1) != NB_HAND_KEYPOINTS) throw("Unexpected number of right hand keypoints! Expected " + to_string(NB_HAND_KEYPOINTS) + ", got " + to_string(hands[1].getSize(1)));
 
             for (int idx = 0; idx < NB_HAND_KEYPOINTS; idx++) {
-                node["hands"][i+1]["right"].push_back(std::vector<float>({hands[1].at({i,idx,0}), hands[1].at({i,idx,1}), hands[1].at({i,idx,2})}));
+                node["hands"][to_string(i+1)]["right"][idx] = iterable2json(std::vector<float>({hands[1].at({i,idx,0}), hands[1].at({i,idx,1}), hands[1].at({i,idx,2})}));
             }
         }
     }
 
     return node;
-    
 }
 
 int main(int argc, char **argv) {
@@ -229,7 +238,7 @@ int main(int argc, char **argv) {
     // poseModel
     const auto poseModel = op::PoseModel::COCO_18;
     // keypointScale
-    const auto keypointScale = op::ScaleMode::InputResolution;
+    const auto keypointScale = op::ScaleMode::ZeroToOne;
     // heatmaps to add
     const auto heatMapTypes = vector<op::HeatMapType>(); // no heat map
     const auto heatMapScale = op::ScaleMode::UnsignedChar;
@@ -329,21 +338,22 @@ int main(int argc, char **argv) {
     int nb_images_with_face = 0;
     int last_percent=0;
 
-
-    YAML::Node posesYaml = YAML::Load(topic + ": []");
+    //YAML::Node root;
+    Json::Value root;
+    Json::Reader reader;
+    ifstream fin(vm["path"].as<string>() + "/" + POSES_FILE);
     try {
-        cout << "Opening existing " << POSES_FILE << "...";
-        posesYaml = YAML::LoadFile(vm["path"].as<string>() + "/" + POSES_FILE);
-        cout << "done." << endl;
+        cout << "Trying to open " << POSES_FILE << "...";
+        fin >> root;
+        //root = YAML::LoadFile(vm["path"].as<string>() + "/" + POSES_FILE);
+        cout << "done. I'm going to update this file." << endl;
     }
-    catch (YAML::BadFile bf) {
-        cout << "Creating new " << POSES_FILE << endl;
+    //catch (YAML::BadFile bf) {
+    catch (Json::RuntimeError re) {
+        cout << "failed. Creating a new " << POSES_FILE << endl;
     }
-    
 
-    YAML::Node yamlNode = posesYaml[topic]["frames"];
-
-    auto nbAlreadyProcessed = yamlNode.size();
+    auto nbAlreadyProcessed = root[topic]["frames"].size();
 
     if(nbAlreadyProcessed > 0) {
         if(nbAlreadyProcessed == view.size()) {
@@ -353,7 +363,7 @@ int main(int argc, char **argv) {
         cout << "Already " << nbAlreadyProcessed << " frames processed for this topic. Skipping them." << endl;
     }
 
-    size_t idx = 0;
+    uint idx = 0;
 
     cout << "Starting processing" << endl;
     for(rosbag::MessageInstance const m : view)
@@ -379,11 +389,11 @@ int main(int argc, char **argv) {
             // Pop frame
             std::shared_ptr<std::vector<op::Datum>> datumProcessed;
             if (successfullyEmplaced && opWrapper.waitAndPop(datumProcessed)) {
-                auto yamlFrame = makeYamlFrame(
+                auto poseFrame = makePoseFrame(
                                           datumProcessed->at(0).poseKeypoints,
                                           vm["face"].as<bool>() ? datumProcessed->at(0).faceKeypoints : NOFACES,
                                           vm["hand"].as<bool>() ? datumProcessed->at(0).handKeypoints : NOHANDS);
-                yamlNode.push_back(yamlFrame);
+                root[topic]["frames"].append(poseFrame);
 
                 if (datumProcessed->at(0).faceRectangles.size() > 0) {
                     nb_images_with_face++;
@@ -413,11 +423,19 @@ int main(int argc, char **argv) {
     cout << "Found " << nb_images_with_face << " images with faces out of " << idx << " (" << (nb_images_with_face * 100.f)/idx << "%)" << endl;
 
     if(vm["face"].as<bool>()) {
-        posesYaml[topic]["nb_frames_with_face"] = nb_images_with_face;
+        root[topic]["nb_frames_with_face"] = nb_images_with_face;
     }
 
+    Json::StreamWriterBuilder builder;
+    builder["commentStyle"] = "None";
+    builder["indentation"] = "";
+    builder["enableYAMLCompatibility"] = false;
+    builder["dropNullPlaceholders"] = false;
+    builder["useSpecialFloats"] = false;
+    //builder["precision"] = 2;
+
     std::ofstream fout(vm["path"].as<string>() + "/" + POSES_FILE);
-    fout  << posesYaml;
+    builder.newStreamWriter()->write(root,&fout);
 
     bag.close();
 }

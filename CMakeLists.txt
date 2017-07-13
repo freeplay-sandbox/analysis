@@ -8,14 +8,24 @@ set(VERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPAC
 
 add_definitions(-std=c++11 -DFREEPLAY_ANALYSIS_VERSION=${VERSION})
 
-find_package(Caffe REQUIRED)
-include_directories(${Caffe_INCLUDE_DIRS})
-add_definitions(-DUSE_CAFFE)
+find_package(Caffe)
 
-find_package(PkgConfig REQUIRED)
-pkg_search_module(OPENPOSE REQUIRED openpose)
-include_directories(${OPENPOSE_INCLUDE_DIRS})
-link_directories(${OPENPOSE_LIBRARY_DIRS})
+if(${Caffe_FOUND})
+    set(WITH_OPENPOSE TRUE)
+endif()
+
+
+if(${WITH_OPENPOSE})
+    include_directories(${Caffe_INCLUDE_DIRS})
+    add_definitions(-DUSE_CAFFE)
+
+    find_package(PkgConfig REQUIRED)
+    pkg_search_module(OPENPOSE REQUIRED openpose)
+    include_directories(${OPENPOSE_INCLUDE_DIRS})
+    link_directories(${OPENPOSE_LIBRARY_DIRS})
+else()
+    message(WARNING "Caffe/OpenPose not found -- pose detection will not be available")
+endif()
 
 find_package(catkin REQUIRED COMPONENTS 
     roscpp
@@ -46,14 +56,22 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 #add_executable(mutual_gaze_segmentation src/mutual_gaze_segmentation.cpp)
 #target_link_libraries(mutual_gaze_segmentation ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})
 
-add_executable(faces_analysis src/faces_analysis.cpp)
-target_link_libraries(faces_analysis ${OpenCV_LIBRARIES} ${Caffe_LIBRARIES} ${OPENPOSE_LIBRARIES} ${catkin_LIBRARIES})
+if(${WITH_OPENPOSE})
+    add_executable(faces_analysis src/faces_analysis.cpp)
+    target_link_libraries(faces_analysis ${OpenCV_LIBRARIES} ${Caffe_LIBRARIES} ${OPENPOSE_LIBRARIES} ${catkin_LIBRARIES})
+
+    install(TARGETS faces_analysis
+        ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+    )
+endif()
 
 add_executable(replay_with_poses src/replay_with_poses.cpp src/jsoncpp.cpp)
 target_link_libraries(replay_with_poses ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})
 
 #install(TARGETS mutual_gaze_segmentation faces_analysis
-install(TARGETS faces_analysis replay_with_poses
+install(TARGETS replay_with_poses
     ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

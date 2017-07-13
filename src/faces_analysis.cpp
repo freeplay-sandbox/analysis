@@ -244,7 +244,6 @@ int main(int argc, char **argv) {
     desc.add_options()
         ("help,h", "produces help message")
         ("version,v", "shows version and exits")
-        ("topic", po::value<string>(), "topic to process (must be of type CompressedImage)")
         ("models", po::value<string>()->default_value("models/"), "path to OpenPose models")
         ("path", po::value<string>(), "record path (must contain experiment.yaml and freeplay.bag)")
         ("face", po::value<bool>()->default_value(true), "detect faces as well")
@@ -266,11 +265,6 @@ int main(int argc, char **argv) {
     if (vm.count("version")) {
         cout << argv[0] << " " << STR(FREEPLAY_ANALYSIS_VERSION) << "\n";
         return 0;
-    }
-
-    if (vm.count("topic") == 0) {
-        cout << "You must specify a topic to process" << endl;
-        return 1;
     }
 
     if (!vm.count("path")) {
@@ -373,108 +367,108 @@ int main(int argc, char **argv) {
     ///////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////
-   
-    //auto estimator = HeadPoseEstimation(vm["model"].as<string>());
 
     cout << "Opening " << vm["path"].as<string>() << "/freeplay.bag..." << endl;
     rosbag::Bag bag(vm["path"].as<string>() + "/freeplay.bag", rosbag::bagmode::Read);
 
-    string topic(vm["topic"].as<string>());
+    string purple_topic("camera_purple/rgb/image_raw/compressed");
+    string yellow_topic("camera_yellow/rgb/image_raw/compressed");
+    string env_topic("env_camera/qhd/image_color/compressed");
 
     std::vector<std::string> topics;
-    topics.push_back(topic);
+    topics.push_back(purple_topic);
+    topics.push_back(yellow_topic);
+    topics.push_back(env_topic);
 
     rosbag::View view(bag, rosbag::TopicQuery(topics));
     //rosbag::View view(bag);
 
     cout << view.size() << " messages to process" << endl << endl;
 
-    int nb_images_with_face = 0;
-    int last_percent=0;
+
+    uint total_idx = 0;
+
+    string json("{");
+
+    for (const auto& topic : topics) {
+        json += "\"" + topic + "\":{\"frames\":[";
+
+        uint nb_images_with_face = 0;
+        uint idx = 0;
+
+        cout << "Processing of topic " << topic << "..." << endl << endl;
+        for(rosbag::MessageInstance const m : view)
+        {
+            if (m.getTopic() == topic || ("/" + m.getTopic() == topic)) {
+                idx++;
+                total_idx++;
+
+                auto compressed_rgb = m.instantiate<sensor_msgs::CompressedImage>();
+                if (compressed_rgb != NULL) {
+                    auto cvimg = imdecode(compressed_rgb->data,1);
 
 
-    string json("{\"" + topic + "\":{\"frames\":[");
+                    // Create new datum
+                    auto datumsPtr = std::make_shared<std::vector<op::Datum>>();
+                    datumsPtr->emplace_back();
+                    auto& datum = datumsPtr->at(0);
+                    
+                    // Fill datum
+                    datum.cvInputData = cvimg;
 
-    size_t nbAlreadyProcessed = 0;
+                    auto successfullyEmplaced = opWrapper.waitAndEmplace(datumsPtr);
+                    // Pop frame
+                    std::shared_ptr<std::vector<op::Datum>> datumProcessed;
+                    if (successfullyEmplaced && opWrapper.waitAndPop(datumProcessed)) {
+                        json += "{";
+                        json += "\"ts\":" + to_string(compressed_rgb->header.stamp.toSec()) +",";
+                        json += makePoseFrame(
+                                            datumProcessed->at(0).poseKeypoints,
+                                            vm["face"].as<bool>() ? datumProcessed->at(0).faceKeypoints : NOFACES,
+                                            vm["hand"].as<bool>() ? datumProcessed->at(0).handKeypoints : NOHANDS);
 
-    if(nbAlreadyProcessed > 0) {
-        if(nbAlreadyProcessed == view.size()) {
-            cout << "All frames alreay processed. Quitting now." << endl;
-            return 0;
-        }
-        cout << "Already " << nbAlreadyProcessed << " frames processed for this topic. Skipping them." << endl;
-    }
+                        json += "},";
+                        if (datumProcessed->at(0).faceRectangles.size() > 0) {
+                            nb_images_with_face++;
+                        }
 
-    uint idx = 0;
+                        //imshow("pose", datumProcessed->at(0).cvOutputData);
+                        //waitKey();
+                    }
+                    else
+                        cerr << "Failed to emplace frame" << endl;
 
-    cout << "Starting processing" << endl;
-    for(rosbag::MessageInstance const m : view)
-    {
-        idx++;
-
-        if(idx <= nbAlreadyProcessed) continue;
-
-        auto compressed_rgb = m.instantiate<sensor_msgs::CompressedImage>();
-        if (compressed_rgb != NULL) {
-            auto cvimg = imdecode(compressed_rgb->data,1);
-
-
-            // Create new datum
-            auto datumsPtr = std::make_shared<std::vector<op::Datum>>();
-            datumsPtr->emplace_back();
-            auto& datum = datumsPtr->at(0);
-            
-            // Fill datum
-            datum.cvInputData = cvimg;
-
-            auto successfullyEmplaced = opWrapper.waitAndEmplace(datumsPtr);
-            // Pop frame
-            std::shared_ptr<std::vector<op::Datum>> datumProcessed;
-            if (successfullyEmplaced && opWrapper.waitAndPop(datumProcessed)) {
-                json += "{";
-                json += "\"ts\":" + to_string(compressed_rgb->header.stamp.toSec()) +",";
-                json += makePoseFrame(
-                                     datumProcessed->at(0).poseKeypoints,
-                                     vm["face"].as<bool>() ? datumProcessed->at(0).faceKeypoints : NOFACES,
-                                     vm["hand"].as<bool>() ? datumProcessed->at(0).handKeypoints : NOHANDS);
-
-                json += "},";
-                if (datumProcessed->at(0).faceRectangles.size() > 0) {
-                    nb_images_with_face++;
                 }
 
-                //imshow("pose", datumProcessed->at(0).cvOutputData);
-                //waitKey();
+
+                int percent = total_idx * 100 / view.size();
+                //if (percent != last_percent) {
+                cout << "\x1b[FDone " << percent << "% (" << total_idx << " images)" << endl;
+                //    last_percent = percent;
+                //}
+
             }
-            else
-                cerr << "Failed to emplace frame" << endl;
-
+            
+            if(interrupted) {
+                cout << "Interrupted." << endl;
+                break;
+            }
         }
 
-        int percent = idx * 100 / view.size();
-        //if (percent != last_percent) {
-            cout << "\x1b[FDone " << percent << "% (" << idx << " images)" << endl;
-        //    last_percent = percent;
-        //}
-
-        if(interrupted) {
-            cout << "Interrupted." << endl;
-            break;
+        if(json.back() == ',') {
+            json.pop_back();
         }
+        json += "]},";
+
+        cout << "\x1b[2FTopic " << topic << " done (" << idx << " frames)" << endl << endl;
     }
 
-
-    cout << "Found " << nb_images_with_face << " images with faces out of " << idx << " (" << (nb_images_with_face * 100.f)/idx << "%)" << endl;
-
-    //if(vm["face"].as<bool>()) {
-    //    root[topic]["nb_frames_with_face"] = nb_images_with_face;
-    //}
 
     if(json.back() == ',') {
         json.pop_back();
     }
 
-    json += "]}}";
+    json += "}";
 
     std::ofstream fout(vm["path"].as<string>() + "/" + POSES_FILE);
     fout << json;

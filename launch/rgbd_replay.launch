@@ -17,6 +17,9 @@
 
     <arg name="bag" />
 
+    <!-- if false, only perform RGB rectification, otherwise, perform RGBD rectification -->
+    <arg name="process_depth" default="true" />
+
     <arg name="loop" default="false" />
     <arg name="keepalive" default="false" />
     <arg name="start" default="0" />
@@ -49,7 +52,7 @@
     <!-- Republish env_camera -->
     <node pkg="image_transport" type="republish" name="env_camera_rgb_republish"
           required="true" output="screen"
-          args="compressed in:=$(arg repub_env)/qhd/image_color out:=$(arg env_camera)/qhd/image_color" />
+          args="compressed in:=$(arg repub_env)/qhd/image_color out:=$(arg env_camera)/rgb/image_raw" />
 
     <arg name="camera_info_repub" default="
                     $(arg camera1)/rgb/image_raw/compressed:=$(arg repub1)/rgb/image_raw/compressed
@@ -97,12 +100,12 @@
             <arg name="rgb_processing"                  default="true"/>
             <arg name="debayer_processing"              default="false"/> <!-- to generate the mono version of the RGB streams -->
             <arg name="ir_processing"                   default="false"/>
-            <arg name="depth_processing"                default="true"/>
-            <arg name="depth_registered_processing"     default="true"/>
+            <arg name="depth_processing"                default="$(arg process_depth)"/>
+            <arg name="depth_registered_processing"     default="$(arg process_depth)"/>
             <arg name="disparity_processing"            default="false"/>
             <arg name="disparity_registered_processing" default="false"/>
             <arg name="hw_registered_processing"        default="false" />
-            <arg name="sw_registered_processing"        default="true" />
+            <arg name="sw_registered_processing"        default="$(arg process_depth)" />
         </include>
 
     </group>
@@ -129,12 +132,42 @@
             <arg name="rgb_processing"                  default="true"/>
             <arg name="debayer_processing"              default="false"/> <!-- to generate the mono version of the RGB streams -->
             <arg name="ir_processing"                   default="false"/>
-            <arg name="depth_processing"                default="true"/>
-            <arg name="depth_registered_processing"     default="true"/>
+            <arg name="depth_processing"                default="$(arg process_depth)"/>
+            <arg name="depth_registered_processing"     default="$(arg process_depth)"/>
             <arg name="disparity_processing"            default="false"/>
             <arg name="disparity_registered_processing" default="false"/>
             <arg name="hw_registered_processing"        default="false" />
-            <arg name="sw_registered_processing"        default="true" />
+            <arg name="sw_registered_processing"        default="$(arg process_depth)" />
+        </include>
+
+    </group>
+
+    <!-- env_camera rectification - note that only RGB rectification is available as we do
+         note record depth!! -->
+    <group ns="$(arg env_camera)">
+
+        <!-- Start nodelet manager in provided namespace -->
+        <arg name="manager" value="$(arg camera2)_nodelet_manager" />
+        <include file="$(find rgbd_launch)/launch/includes/manager.launch.xml">
+            <arg name="name"                value="$(arg manager)" />
+            <arg name="debug"               value="false" /> <!-- run in GDB? -->
+            <arg name="num_worker_threads"  value="$(arg num_worker_threads)" />
+        </include>
+
+        <!-- Load standard constellation of processing nodelets -->
+        <include file="$(find rgbd_launch)/launch/includes/processing.launch.xml">
+            <arg name="manager"                         value="$(arg manager)" />
+            <arg name="rgb"                             value="rgb" />
+            <arg name="respawn"                         value="$(arg respawn)" />
+            <arg name="rgb_processing"                  default="true"/>
+            <arg name="debayer_processing"              default="false"/> <!-- to generate the mono version of the RGB streams -->
+            <arg name="ir_processing"                   default="false"/>
+            <arg name="depth_processing"                default="false"/>
+            <arg name="depth_registered_processing"     default="false"/>
+            <arg name="disparity_processing"            default="false"/>
+            <arg name="disparity_registered_processing" default="false"/>
+            <arg name="hw_registered_processing"        default="false" />
+            <arg name="sw_registered_processing"        default="false" />
         </include>
 
     </group>
@@ -150,7 +183,7 @@
     </group>
     <group unless="$(arg loop)">
         <node if="$(arg keepalive)" pkg="rosbag" type="play" name="rosbag_play_freeplay_sandbox" required="true"
-            args="--clock --keep-alive $(arg bag)  -s $(arg start) -r $(arg rate) -d $(arg delay) $(arg camera_info_repub)"
+            args="--clock --keep-alive $(arg bag) -s $(arg start) -r $(arg rate) -d $(arg delay) $(arg camera_info_repub)"
             output="screen" />
         <node unless="$(arg keepalive)" pkg="rosbag" type="play" name="rosbag_play_freeplay_sandbox" required="true"
             args="--clock $(arg bag)  -s $(arg start) -r $(arg rate) -d $(arg delay) $(arg camera_info_repub)"

@@ -1,0 +1,44 @@
+
+<launch>
+
+    <arg name="camera1"              default="camera_purple" />
+    <arg name="camera2"              default="camera_yellow" />
+    <arg name="env_camera"           default="env_camera" />
+    <arg name="duration"             default="40m" />
+    <arg name="output_file"          default="rectified_streams" />
+
+    <arg name="bag" />
+
+    <!-- configure the compressed streams -->
+    <param name="$(arg camera1)/rgb/image_rect_color/compressed/format" type="str" value="jpeg" />
+    <param name="$(arg camera1)/rgb/image_rect_color/compressed/jpeg_quality" type="int" value="85" />
+
+    <param name="$(arg camera2)/rgb/image_rect_color/compressed/format" type="str" value="jpeg" />
+    <param name="$(arg camera2)/rgb/image_rect_color/compressed/jpeg_quality" type="int" value="85" />
+
+    <param name="$(arg env_camera)/rgb/image_rect_color/compressed/format" type="str" value="jpeg" />
+    <param name="$(arg env_camera)/rgb/image_rect_color/compressed/jpeg_quality" type="int" value="85" />
+
+
+    <arg name="topics" default="$(arg camera1)/rgb/image_rect_color/compressed 
+                                $(arg camera2)/rgb/image_rect_color/compressed
+                                $(arg env_camera)/rgb/image_rect_color/compressed 
+                                "/>
+
+     <node pkg="rosbag" type="record" name="rosbag_record_freeplay_sandbox"
+         args="--output-name $(arg output_file) $(arg topics) --duration=$(arg duration)"
+         output="screen" required="true" />
+
+    <include file="$(find freeplay_sandbox_analysis)/launch/rgbd_replay.launch">
+        <arg name="process_depth"   value="false" />
+        <arg name="env_camera"      value="$(arg env_camera)" />
+        <arg name="start"           value="0" />
+        <arg name="delay"           value="1" />
+        <arg name="rate"            value="1.0" />
+        <arg name="bag"             value="$(arg bag)" />
+        <arg name="loop"            value="false" />
+        <arg name="keepalive"       value="false" />
+    </include>
+
+
+</launch>

@@ -85,31 +85,34 @@ void my_handler(int s){
 
 cv::Mat drawSkeleton(cv::Mat image, Json::Value skel) {
 
+    auto w = image.size().width;
+    auto h = image.size().height;
+
     for(uint skel_idx = 1; skel_idx <= skel.size(); skel_idx++) {
         for(uint i = 0; i < SKEL_SEGMENTS.size(); i+=2) {
 
-            float confidence1 = skel[to_string(skel_idx)][SKEL_SEGMENTS[i]+1][2].asFloat();
+            float confidence1 = skel[to_string(skel_idx)][SKEL_SEGMENTS[i]][2].asFloat();
             if (confidence1 < SKEL_FEATURE_LOW_CONFIDENCE_THRESHOLD) continue;
 
-            Point2f p1(skel[to_string(skel_idx)][SKEL_SEGMENTS[i]+1][0].asFloat(), skel[to_string(skel_idx)][SKEL_SEGMENTS[i]+1][1].asFloat());
+            Point2f p1(w*skel[to_string(skel_idx)][SKEL_SEGMENTS[i]][0].asFloat(), h*skel[to_string(skel_idx)][SKEL_SEGMENTS[i]][1].asFloat());
 
-            float confidence2 = skel[to_string(skel_idx)][SKEL_SEGMENTS[i+1]+1][2].asFloat();
+            float confidence2 = skel[to_string(skel_idx)][SKEL_SEGMENTS[i+1]][2].asFloat();
             if (confidence2 < SKEL_FEATURE_LOW_CONFIDENCE_THRESHOLD) continue;
 
             bool highconfidence = (confidence1 > SKEL_FEATURE_HIGH_CONFIDENCE_THRESHOLD && confidence2 > SKEL_FEATURE_HIGH_CONFIDENCE_THRESHOLD); 
 
             int width = highconfidence ? 3 : 1;
 
-            Point2f p2(skel[to_string(skel_idx)][SKEL_SEGMENTS[i+1]+1][0].asFloat(), skel[to_string(skel_idx)][SKEL_SEGMENTS[i+1]+1][1].asFloat());
+            Point2f p2(w*skel[to_string(skel_idx)][SKEL_SEGMENTS[i+1]][0].asFloat(), h*skel[to_string(skel_idx)][SKEL_SEGMENTS[i+1]][1].asFloat());
 
             cv::line(image, p1, p2, Scalar(200,100,20), width, cv::LINE_AA);
         }
 
         for(uint i = 0; i < NB_SKEL_FEATURES; i++) {
-            float confidence = skel[to_string(skel_idx)][i+1][2].asFloat();
+            float confidence = skel[to_string(skel_idx)][i][2].asFloat();
             if (confidence < SKEL_FEATURE_LOW_CONFIDENCE_THRESHOLD) continue;
 
-            Point2f p(skel[to_string(skel_idx)][i+1][0].asFloat(), skel[to_string(skel_idx)][i+1][1].asFloat());
+            Point2f p(w*skel[to_string(skel_idx)][i][0].asFloat(), h*skel[to_string(skel_idx)][i][1].asFloat());
             cv::circle(image, p, 5, Scalar(200,100,20), -1, cv::LINE_AA);
         }
     }
@@ -119,40 +122,35 @@ cv::Mat drawSkeleton(cv::Mat image, Json::Value skel) {
 
 cv::Mat drawFace(cv::Mat image, Json::Value face) {
 
+    auto w = image.size().width;
+    auto h = image.size().height;
+
     for(uint face_idx = 1; face_idx <= face.size(); face_idx++) {
         for(uint i = 0; i < FACE_SEGMENTS.size(); i+=2) {
 
-            float confidence1 = face[to_string(face_idx)][FACE_SEGMENTS[i]+1][2].asFloat();
+            float confidence1 = face[to_string(face_idx)][FACE_SEGMENTS[i]][2].asFloat();
             if (confidence1 < FACE_FEATURE_LOW_CONFIDENCE_THRESHOLD) continue;
 
-            Point2f p1(face[to_string(face_idx)][FACE_SEGMENTS[i]+1][0].asFloat(), face[to_string(face_idx)][FACE_SEGMENTS[i]+1][1].asFloat());
+            Point2f p1(w*face[to_string(face_idx)][FACE_SEGMENTS[i]][0].asFloat(), h*face[to_string(face_idx)][FACE_SEGMENTS[i]][1].asFloat());
 
-            float confidence2 = face[to_string(face_idx)][FACE_SEGMENTS[i+1]+1][2].asFloat();
+            float confidence2 = face[to_string(face_idx)][FACE_SEGMENTS[i+1]][2].asFloat();
             if (confidence2 < FACE_FEATURE_LOW_CONFIDENCE_THRESHOLD) continue;
 
             bool highconfidence = (confidence1 > FACE_FEATURE_HIGH_CONFIDENCE_THRESHOLD && confidence2 > FACE_FEATURE_HIGH_CONFIDENCE_THRESHOLD); 
 
             int width = highconfidence ? 2 : 1;
 
-            Point2f p2(face[to_string(face_idx)][FACE_SEGMENTS[i+1]+1][0].asFloat(), face[to_string(face_idx)][FACE_SEGMENTS[i+1]+1][1].asFloat());
+            Point2f p2(w*face[to_string(face_idx)][FACE_SEGMENTS[i+1]][0].asFloat(), h*face[to_string(face_idx)][FACE_SEGMENTS[i+1]][1].asFloat());
 
             cv::line(image, p1, p2, Scalar(20,100,200), width, cv::LINE_AA);
         }
 
-        //for(uint i = 0; i < NB_FACE_FEATURES - 2; i++) {
-        //    float confidence = face[face_idx][i+1][2].asFloat();
-        //    if (confidence < FACE_FEATURE_CONFIDENCE_THRESHOLD) continue;
-
-        //    Point2f p(face[face_idx][i+1][0].asFloat(), face[face_idx][i+1][1].asFloat());
-        //    cv::circle(image, p, 2, Scalar(50,100,200), -1, cv::LINE_AA);
-        //}
-
         // pupils
         for(uint i = 68; i < NB_FACE_FEATURES; i++) {
-            float confidence = face[to_string(face_idx)][i+1][2].asFloat();
+            float confidence = face[to_string(face_idx)][i][2].asFloat();
             if (confidence < PUPILS_CONFIDENCE_THRESHOLD) continue;
 
-            Point2f p(face[to_string(face_idx)][i+1][0].asFloat(), face[to_string(face_idx)][i+1][1].asFloat());
+            Point2f p(w*face[to_string(face_idx)][i][0].asFloat(), h*face[to_string(face_idx)][i][1].asFloat());
             cv::circle(image, p, 3, Scalar(50,200,100), 1, cv::LINE_AA);
         }
     }
@@ -162,25 +160,28 @@ cv::Mat drawFace(cv::Mat image, Json::Value face) {
 
 cv::Mat drawHands(cv::Mat image, Json::Value hand) {
 
+    auto w = image.size().width;
+    auto h = image.size().height;
+
     for(uint hand_idx = 1; hand_idx <= hand.size(); hand_idx++) {
         for(auto handeness : {"left", "right"}) {
             for(uint i = 0; i < HAND_SEGMENTS.size(); i+=2) {
 
-                float confidence1 = hand[to_string(hand_idx)][handeness][HAND_SEGMENTS[i]+1][2].asFloat();
+                float confidence1 = hand[to_string(hand_idx)][handeness][HAND_SEGMENTS[i]][2].asFloat();
                 if (confidence1 < HAND_FEATURE_LOW_CONFIDENCE_THRESHOLD) continue;
 
-                Point2f p1(hand[to_string(hand_idx)][handeness][HAND_SEGMENTS[i]+1][0].asFloat(), hand[to_string(hand_idx)][handeness][HAND_SEGMENTS[i]+1][1].asFloat());
+                Point2f p1(w*hand[to_string(hand_idx)][handeness][HAND_SEGMENTS[i]][0].asFloat(), h*hand[to_string(hand_idx)][handeness][HAND_SEGMENTS[i]][1].asFloat());
 
-                float confidence2 = hand[to_string(hand_idx)][handeness][HAND_SEGMENTS[i+1]+1][2].asFloat();
+                float confidence2 = hand[to_string(hand_idx)][handeness][HAND_SEGMENTS[i+1]][2].asFloat();
                 if (confidence2 < HAND_FEATURE_LOW_CONFIDENCE_THRESHOLD) continue;
 
                 bool highconfidence = (confidence1 > HAND_FEATURE_HIGH_CONFIDENCE_THRESHOLD && confidence2 > HAND_FEATURE_HIGH_CONFIDENCE_THRESHOLD); 
 
                 int width = highconfidence ? 2 : 1;
 
-                Point2f p2(hand[to_string(hand_idx)][handeness][HAND_SEGMENTS[i+1]+1][0].asFloat(), hand[to_string(hand_idx)][handeness][HAND_SEGMENTS[i+1]+1][1].asFloat());
+                Point2f p2(w*hand[to_string(hand_idx)][handeness][HAND_SEGMENTS[i+1]][0].asFloat(), h*hand[to_string(hand_idx)][handeness][HAND_SEGMENTS[i+1]][1].asFloat());
 
-                cv::line(image, p1, p2, Scalar(20,100,200), width, cv::LINE_AA);
+                cv::line(image, p1, p2, Scalar(20,200,20), width, cv::LINE_AA);
             }
         }
     }
@@ -191,10 +192,11 @@ cv::Mat drawHands(cv::Mat image, Json::Value hand) {
 
 cv::Mat drawPose(cv::Mat image, Json::Value frame, bool skeletons, bool faces, bool hands) {
 
-    if(faces) image = drawFace(image, frame["faces"]);
-    if(hands) image = drawHands(image, frame["hands"]);
     if(skeletons) image = drawSkeleton(image, frame["poses"]);
+    if(hands) image = drawHands(image, frame["hands"]);
+    if(faces) image = drawFace(image, frame["faces"]);
     return image;
+
 
 }
 
@@ -287,7 +289,7 @@ int main(int argc, char **argv) {
             auto cvimg = imdecode(compressed_rgb->data,1);
 
 
-            cvimg = drawPose(cvimg, root[topic]["frames"][1],vm["skeleton"].as<bool>(), vm["face"].as<bool>(), vm["hand"].as<bool>() );
+            cvimg = drawPose(cvimg, root[topic]["frames"][idx],vm["skeleton"].as<bool>(), vm["face"].as<bool>(), vm["hand"].as<bool>() );
 
 
             imshow(topic, cvimg);

@@ -42,54 +42,73 @@ namespace po = boost::program_options;
 const string POSES_FILE ("poses.json");
 
 /**
- * Format of poses.yaml:
+ * Format of poses.json:
  * details of parts idx is here: https://github.com/CMU-Perceptual-Computing-Lab/openpose/blob/master/doc/output.md
 
-<topic_name>:
-    - poses:
-            1: # pose index
-            # x,y in image coordinate, c is confidence in [0.0,1.0]
-            - [x, y, c] # Nose
-            - [x, y, c] # Neck
-            - [x, y, c] # RShoulder
-            - [x, y, c] # RElbow
-            - [x, y, c] # RWrist
-            - [x, y, c] # LShoulder
-            - [x, y, c] # LElbow
-            - [x, y, c] # LWrist
-            - [x, y, c] # RHip
-            - [x, y, c] # RKnee
-            - [x, y, c] # RAnkle
-            - [x, y, c] # LHip
-            - [x, y, c] # LKnee
-            - [x, y, c] # LAnkle
-            - [x, y, c] # REye
-            - [x, y, c] # LEye
-            - [x, y, c] # REar
-            - [x, y, c] # LEar
-            2:
-            - ...
-      faces:
-            1: # face index
-            # x,y in image coordinate, c is confidence in [0.0,1.0]
-            - [x, y, c]
-            - ... # 70 points in total
-            2:
-            - ...
-      hands:
-            1: # hand index
-                left:
+ {<topic_name>:
+    {"frames" : [{
+        "ts": <timestamp in floating sec>,
+        "poses": {
+            "1": [ # pose index
                 # x,y in image coordinate, c is confidence in [0.0,1.0]
-                - [x, y, c]
-                - ... # 20 points in total
-                right:
-                # x,y in image coordinate, c is confidence in [0.0,1.0]
-                - [x, y, c]
-                - ... # 20 points in total
-            2:
-            ...
-    - poses: # 2nd frame
+                [x, y, c], # Nose
+                [x, y, c], # Neck
+                [x, y, c], # RShoulder
+                [x, y, c], # RElbow
+                [x, y, c], # RWrist
+                [x, y, c], # LShoulder
+                [x, y, c], # LElbow
+                [x, y, c], # LWrist
+                [x, y, c], # RHip
+                [x, y, c], # RKnee
+                [x, y, c], # RAnkle
+                [x, y, c], # LHip
+                [x, y, c], # LKnee
+                [x, y, c], # LAnkle
+                [x, y, c], # REye
+                [x, y, c], # LEye
+                [x, y, c], # REar
+                [x, y, c] # LEar
+            ],
+            "2": [ # if present, second skeleton
+              ...
+            ]
+      },
+      "faces": {
+            "1": [ # face index
+              # x,y in image coordinate, c is confidence in [0.0,1.0]
+              [x, y, c],
+              ... # 70 points in total
+            ],
+            "2": [
+               ...
+            ]
+      }
+      "hands": {
+            "1": { # hand index
+                "left": [
+                    # x,y in image coordinate, c is confidence in [0.0,1.0]
+                    [x, y, c],
+                    ... # 20 points in total
+                ],
+                "right": [
+                    # x,y in image coordinate, c is confidence in [0.0,1.0]
+                    [x, y, c],
+                    ... # 20 points in total
+                ]
+            },
+            "2":
+              ...
+        }
+    },
+    { # 2nd frame
+        "ts": ...
+        "poses":
         ...
+    }
+    ]
+  }
+}
 
 
 */
@@ -109,64 +128,99 @@ typedef std::array<op::Array<float>, 2> opHandsKeypoints;
 const opFacesKeypoints NOFACES;
 const opHandsKeypoints NOHANDS{};
 
-template <typename Iterable>
-Json::Value iterable2json(Iterable const& cont) {
-        Json::Value v;
-            for (auto&& element: cont) {
-                        v.append(element);
-                             }
-                 return v;
+/**
+ * 'compress' string representation of double to make them as small as possible
+ */
+std::string str(double n, int precision = 2) {
+
+    if (n == 0) return "0";
+    std::ostringstream out;
+    out << std::fixed << std::setprecision(precision) << n;
+
+    auto s = out.str();
+
+    // remove trailing zeros
+    s.erase(s.find_last_not_of('0') + 1, std::string::npos);
+    // remove trailing point
+    if(s.back() == '.') {
+        s.pop_back();
+    }
+
+    return s;
 }
 
-Json::Value makePoseFrame(const opPosesKeypoints poses, const opFacesKeypoints faces, const opHandsKeypoints hands) {
+std::string str(std::array<double,3> p) {
 
-    Json::Value node;
+    std::ostringstream out;
+    out << "[" << str(p[0], 4) << "," << str(p[1], 4) << "," << str(p[2]) << "]";
+    return out.str();
+}
+
+std::string makePoseFrame(const opPosesKeypoints poses, const opFacesKeypoints faces, const opHandsKeypoints hands) {
+
+    std::string node;
 
     const int NB_POSE_KEYPOINTS = 18; // COCO_18
     const int NB_FACE_KEYPOINTS = 70;
     const int NB_HAND_KEYPOINTS = 21;
 
     // pose
+    node += "\"poses\":{";
     for (int i = 0; i < poses.getSize(0); i++) {
+        node += "\"" + to_string(i+1) + "\":[";
         if(poses.getSize(1) != NB_POSE_KEYPOINTS) throw range_error("Unexpected number of pose keypoints!");
 
         for (int idx = 0; idx < NB_POSE_KEYPOINTS; idx++) {
-            node["poses"][to_string(i+1)][idx] = iterable2json(std::vector<float>({poses.at({i,idx,0}), poses.at({i,idx,1}), poses.at({i,idx,2})}));
+            node += str({{poses.at({i,idx,0}), poses.at({i,idx,1}), poses.at({i,idx,2})}});
+            if (idx != NB_POSE_KEYPOINTS-1) node +=",";
         }
+        node += "]";
+        if (i != poses.getSize(0) - 1) node +=",";
     }
+    node += "}";
 
     // face
     if (!faces.empty())
     {
+        node += ",\"faces\":{";
         for (int i = 0; i < faces.getSize(0); i++) {
+            node += "\"" + to_string(i+1) + "\":[";
             if(faces.getSize(1) != NB_FACE_KEYPOINTS) throw range_error("Unexpected number of face keypoints! Expected " + to_string(NB_FACE_KEYPOINTS) + ", got " + to_string(faces.getSize(1)));
 
             for (int idx = 0; idx < NB_FACE_KEYPOINTS; idx++) {
-                node["faces"][to_string(i+1)][idx] = iterable2json(std::vector<float>({faces.at({i,idx,0}), faces.at({i,idx,1}), faces.at({i,idx,2})}));
+                node += str({{faces.at({i,idx,0}), faces.at({i,idx,1}), faces.at({i,idx,2})}});
+                if (idx != NB_FACE_KEYPOINTS-1) node +=",";
             }
+            node += "]";
+            if (i != faces.getSize(0) - 1) node +=",";
         }
+        node += "}";
     }
 
     if (!hands.empty())
     {
-        // left hand
+        node += ",\"hands\":{";
         for (int i = 0; i < hands[0].getSize(0); i++) {
+            node += "\"" + to_string(i+1) + "\":{";
             if(hands[0].getSize(1) != NB_HAND_KEYPOINTS) throw range_error("Unexpected number of left hand keypoints! Expected " + to_string(NB_HAND_KEYPOINTS) + ", got " + to_string(hands[0].getSize(1)));
-
-
+            if(hands[1].getSize(1) != NB_HAND_KEYPOINTS) throw range_error("Unexpected number of right hand keypoints! Expected " + to_string(NB_HAND_KEYPOINTS) + ", got " + to_string(hands[1].getSize(1)));
+            // left hand
+            node += "\"left\":[";
             for (int idx = 0; idx < NB_HAND_KEYPOINTS; idx++) {
-                node["hands"][to_string(i+1)]["left"][idx] = iterable2json(std::vector<float>({hands[0].at({i,idx,0}), hands[0].at({i,idx,1}), hands[0].at({i,idx,2})}));
+                node += str({{hands[0].at({i,idx,0}), hands[0].at({i,idx,1}), hands[0].at({i,idx,2})}});
+                if (idx != NB_HAND_KEYPOINTS-1) node +=",";
             }
-        }
-
-        // right hand
-        for (int i = 0; i < hands[1].getSize(0); i++) {
-            if(hands[1].getSize(1) != NB_HAND_KEYPOINTS) throw("Unexpected number of right hand keypoints! Expected " + to_string(NB_HAND_KEYPOINTS) + ", got " + to_string(hands[1].getSize(1)));
-
+            // right hand
+            node += "],\"right\":[";
             for (int idx = 0; idx < NB_HAND_KEYPOINTS; idx++) {
-                node["hands"][to_string(i+1)]["right"][idx] = iterable2json(std::vector<float>({hands[1].at({i,idx,0}), hands[1].at({i,idx,1}), hands[1].at({i,idx,2})}));
+                node += str({{hands[1].at({i,idx,0}), hands[1].at({i,idx,1}), hands[1].at({i,idx,2})}});
+                if (idx != NB_HAND_KEYPOINTS-1) node +=",";
             }
+            node += "]";
+            node += "}";
+            if (i != hands[0].getSize(0) - 1) node +=",";
         }
+        node += "}";
     }
 
     return node;
@@ -338,22 +392,10 @@ int main(int argc, char **argv) {
     int nb_images_with_face = 0;
     int last_percent=0;
 
-    //YAML::Node root;
-    Json::Value root;
-    Json::Reader reader;
-    ifstream fin(vm["path"].as<string>() + "/" + POSES_FILE);
-    try {
-        cout << "Trying to open " << POSES_FILE << "...";
-        fin >> root;
-        //root = YAML::LoadFile(vm["path"].as<string>() + "/" + POSES_FILE);
-        cout << "done. I'm going to update this file." << endl;
-    }
-    //catch (YAML::BadFile bf) {
-    catch (Json::RuntimeError re) {
-        cout << "failed. Creating a new " << POSES_FILE << endl;
-    }
 
-    auto nbAlreadyProcessed = root[topic]["frames"].size();
+    string json("{\"" + topic + "\":{\"frames\":[");
+
+    size_t nbAlreadyProcessed = 0;
 
     if(nbAlreadyProcessed > 0) {
         if(nbAlreadyProcessed == view.size()) {
@@ -389,12 +431,14 @@ int main(int argc, char **argv) {
             // Pop frame
             std::shared_ptr<std::vector<op::Datum>> datumProcessed;
             if (successfullyEmplaced && opWrapper.waitAndPop(datumProcessed)) {
-                auto poseFrame = makePoseFrame(
-                                          datumProcessed->at(0).poseKeypoints,
-                                          vm["face"].as<bool>() ? datumProcessed->at(0).faceKeypoints : NOFACES,
-                                          vm["hand"].as<bool>() ? datumProcessed->at(0).handKeypoints : NOHANDS);
-                root[topic]["frames"].append(poseFrame);
+                json += "{";
+                json += "\"ts\":" + to_string(compressed_rgb->header.stamp.toSec()) +",";
+                json += makePoseFrame(
+                                     datumProcessed->at(0).poseKeypoints,
+                                     vm["face"].as<bool>() ? datumProcessed->at(0).faceKeypoints : NOFACES,
+                                     vm["hand"].as<bool>() ? datumProcessed->at(0).handKeypoints : NOHANDS);
 
+                json += "},";
                 if (datumProcessed->at(0).faceRectangles.size() > 0) {
                     nb_images_with_face++;
                 }
@@ -408,10 +452,10 @@ int main(int argc, char **argv) {
         }
 
         int percent = idx * 100 / view.size();
-        if (percent != last_percent) {
+        //if (percent != last_percent) {
             cout << "\x1b[FDone " << percent << "% (" << idx << " images)" << endl;
-            last_percent = percent;
-        }
+        //    last_percent = percent;
+        //}
 
         if(interrupted) {
             cout << "Interrupted." << endl;
@@ -422,20 +466,19 @@ int main(int argc, char **argv) {
 
     cout << "Found " << nb_images_with_face << " images with faces out of " << idx << " (" << (nb_images_with_face * 100.f)/idx << "%)" << endl;
 
-    if(vm["face"].as<bool>()) {
-        root[topic]["nb_frames_with_face"] = nb_images_with_face;
+    //if(vm["face"].as<bool>()) {
+    //    root[topic]["nb_frames_with_face"] = nb_images_with_face;
+    //}
+
+    if(json.back() == ',') {
+        json.pop_back();
     }
 
-    Json::StreamWriterBuilder builder;
-    builder["commentStyle"] = "None";
-    builder["indentation"] = "";
-    builder["enableYAMLCompatibility"] = false;
-    builder["dropNullPlaceholders"] = false;
-    builder["useSpecialFloats"] = false;
-    //builder["precision"] = 2;
+    json += "]}}";
 
     std::ofstream fout(vm["path"].as<string>() + "/" + POSES_FILE);
-    builder.newStreamWriter()->write(root,&fout);
+    fout << json;
+    cout << "Wrote " << vm["path"].as<string>() + "/" + POSES_FILE << endl;
 
     bag.close();
 }

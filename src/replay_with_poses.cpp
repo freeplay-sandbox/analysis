@@ -37,6 +37,8 @@ namespace enc = sensor_msgs::image_encodings;
 namespace po = boost::program_options;
 
 
+//const string BAG_FILE ("rectified_streams.bag");
+const string BAG_FILE ("freeplay.bag");
 const string POSES_FILE ("poses.json");
 
 const float SKEL_FEATURE_LOW_CONFIDENCE_THRESHOLD = 0.05;
@@ -252,8 +254,8 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    cout << "Opening " << vm["path"].as<string>() << "/freeplay.bag..." << endl;
-    rosbag::Bag bag(vm["path"].as<string>() + "/freeplay.bag", rosbag::bagmode::Read);
+    cout << "Opening " << vm["path"].as<string>() << "/" << BAG_FILE << "..." << endl;
+    rosbag::Bag bag(vm["path"].as<string>() + "/" + BAG_FILE, rosbag::bagmode::Read);
 
     string topic(vm["topic"].as<string>());
 

@@ -189,11 +189,12 @@ cv::Mat drawHands(cv::Mat image, Json::Value hand) {
 }
 
 
-cv::Mat drawPose(cv::Mat image, Json::Value frame) {
+cv::Mat drawPose(cv::Mat image, Json::Value frame, bool skeletons, bool faces, bool hands) {
 
-    auto img1 = drawSkeleton(image, frame["poses"]);
-    auto img2 = drawHands(image, frame["hands"]);
-    return drawFace(img2, frame["faces"]);
+    if(faces) image = drawFace(image, frame["faces"]);
+    if(hands) image = drawHands(image, frame["hands"]);
+    if(skeletons) image = drawSkeleton(image, frame["poses"]);
+    return image;
 
 }
 
@@ -286,7 +287,7 @@ int main(int argc, char **argv) {
             auto cvimg = imdecode(compressed_rgb->data,1);
 
 
-            cvimg = drawPose(cvimg, root[topic]["frames"][1]);
+            cvimg = drawPose(cvimg, root[topic]["frames"][1],vm["skeleton"].as<bool>(), vm["face"].as<bool>(), vm["hand"].as<bool>() );
 
 
             imshow(topic, cvimg);

@@ -17,10 +17,6 @@ pkg_search_module(OPENPOSE REQUIRED openpose)
 include_directories(${OPENPOSE_INCLUDE_DIRS})
 link_directories(${OPENPOSE_LIBRARY_DIRS})
 
-
-find_package(yaml-cpp REQUIRED)
-include_directories(${YAML_CPP_INCLUDE_DIRS})
-
 find_package(catkin REQUIRED COMPONENTS 
     roscpp
     rosbag
@@ -50,14 +46,11 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 #add_executable(mutual_gaze_segmentation src/mutual_gaze_segmentation.cpp)
 #target_link_libraries(mutual_gaze_segmentation ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})
 
-add_executable(faces_analysis src/faces_analysis.cpp src/jsoncpp.cpp)
+add_executable(faces_analysis src/faces_analysis.cpp)
 target_link_libraries(faces_analysis ${OpenCV_LIBRARIES} ${Caffe_LIBRARIES} ${OPENPOSE_LIBRARIES} ${catkin_LIBRARIES})
 
-add_executable(replay_with_poses src/replay_with_poses.cpp)
-target_link_libraries(replay_with_poses ${OpenCV_LIBRARIES} ${catkin_LIBRARIES} ${YAML_CPP_LIBRARIES})
-
-add_executable(json-yaml-bench src/json-yaml-bench.cpp src/jsoncpp.cpp)
-target_link_libraries(json-yaml-bench ${YAML_CPP_LIBRARIES})
+add_executable(replay_with_poses src/replay_with_poses.cpp src/jsoncpp.cpp)
+target_link_libraries(replay_with_poses ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})
 
 #install(TARGETS mutual_gaze_segmentation faces_analysis
 install(TARGETS faces_analysis replay_with_poses

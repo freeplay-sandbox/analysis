@@ -1,3 +1,4 @@
+#include <fstream>
 #include <iostream>
 #include <chrono> // `std::chrono::` functions and classes, e.g. std::chrono::milliseconds
 #include <string>
@@ -25,7 +26,7 @@
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
 
-#include <yaml-cpp/yaml.h>
+#include "json/json.h"
 
 #define STR_EXPAND(tok) #tok
 #define STR(tok) STR_EXPAND(tok)
@@ -36,12 +37,12 @@ namespace enc = sensor_msgs::image_encodings;
 namespace po = boost::program_options;
 
 
-const string POSES_FILE ("poses.yaml");
+const string POSES_FILE ("poses.json");
 
 const float SKEL_FEATURE_LOW_CONFIDENCE_THRESHOLD = 0.05;
 const float SKEL_FEATURE_HIGH_CONFIDENCE_THRESHOLD = 0.2;
-const size_t NB_SKEL_FEATURES = 18;
-const vector<size_t> SKEL_SEGMENTS {  0,1, // neck
+const uint NB_SKEL_FEATURES = 18;
+const vector<uint>  SKEL_SEGMENTS {  0,1, // neck
                                       1,2,    2,3,   3,4, // right arm
                                       1,5,    5,6,   6,7, // left arm
                                       1,8,   8,9,  9,10, // right leg
@@ -53,8 +54,8 @@ const vector<size_t> SKEL_SEGMENTS {  0,1, // neck
 const float FACE_FEATURE_HIGH_CONFIDENCE_THRESHOLD = 0.4;
 const float FACE_FEATURE_LOW_CONFIDENCE_THRESHOLD = 0.2;
 const float PUPILS_CONFIDENCE_THRESHOLD = 0.8;
-const size_t NB_FACE_FEATURES = 70;
-const vector<size_t> FACE_SEGMENTS {  0,1,  1,2,    2,3,   3,4,   4,5,   5,6,   6,7,   7,8,   8,9,  9,10,  10,11,  11,12,  12,13,  13,14,  14,15,  15,16, // face contour
+const uint NB_FACE_FEATURES = 70;
+const vector<uint> FACE_SEGMENTS {  0,1,  1,2,    2,3,   3,4,   4,5,   5,6,   6,7,   7,8,   8,9,  9,10,  10,11,  11,12,  12,13,  13,14,  14,15,  15,16, // face contour
                                     17,18,  18,19,  19,20, 20,21, // right eyebrow
                                     22,23,  23,24, 24,25, 25,26, // left eyebrow
                                     27,28, 28,29, 29,30, // nose line
@@ -65,6 +66,16 @@ const vector<size_t> FACE_SEGMENTS {  0,1,  1,2,    2,3,   3,4,   4,5,   5,6,   
                                     60,61, 61,62, 62,63, 63,64, 64,65, 65,66, 66,67, 67,60 // inner lips
                                    };
 
+const float HAND_FEATURE_HIGH_CONFIDENCE_THRESHOLD = 0.4;
+const float HAND_FEATURE_LOW_CONFIDENCE_THRESHOLD = 0.2;
+const uint NB_HAND_FEATURES = 21;
+const vector<uint> HAND_SEGMENTS {  0,1,  1,2,    2,3,   3,4,  // thumb
+                                    0,5,  5,6,   6,7,   7,8, // index
+                                    0,9,  9,10,  10,11,  11,12, // middle finger
+                                    0,13, 13,14,  14,15,  15,16, // ring finger
+                                    0,17, 17,18,  18,19,  19,20 // little finger
+                                   };
+
 bool interrupted = false;
 
 void my_handler(int s){
@@ -72,33 +83,33 @@ void my_handler(int s){
     interrupted = true; 
 }
 
-cv::Mat drawSkeleton(cv::Mat image, YAML::Node skel) {
+cv::Mat drawSkeleton(cv::Mat image, Json::Value skel) {
 
-    for(size_t skel_idx = 1; skel_idx <= skel.size(); skel_idx++) {
-        for(size_t i = 0; i < SKEL_SEGMENTS.size(); i+=2) {
+    for(uint skel_idx = 1; skel_idx <= skel.size(); skel_idx++) {
+        for(uint i = 0; i < SKEL_SEGMENTS.size(); i+=2) {
 
-            float confidence1 = skel[skel_idx][SKEL_SEGMENTS[i]+1][2].as<float>();
+            float confidence1 = skel[to_string(skel_idx)][SKEL_SEGMENTS[i]+1][2].asFloat();
             if (confidence1 < SKEL_FEATURE_LOW_CONFIDENCE_THRESHOLD) continue;
 
-            Point2f p1(skel[skel_idx][SKEL_SEGMENTS[i]][0].as<float>(), skel[skel_idx][SKEL_SEGMENTS[i]][1].as<float>());
+            Point2f p1(skel[to_string(skel_idx)][SKEL_SEGMENTS[i]+1][0].asFloat(), skel[to_string(skel_idx)][SKEL_SEGMENTS[i]+1][1].asFloat());
 
-            float confidence2 = skel[skel_idx][SKEL_SEGMENTS[i+1]][2].as<float>();
+            float confidence2 = skel[to_string(skel_idx)][SKEL_SEGMENTS[i+1]+1][2].asFloat();
             if (confidence2 < SKEL_FEATURE_LOW_CONFIDENCE_THRESHOLD) continue;
 
             bool highconfidence = (confidence1 > SKEL_FEATURE_HIGH_CONFIDENCE_THRESHOLD && confidence2 > SKEL_FEATURE_HIGH_CONFIDENCE_THRESHOLD); 
 
             int width = highconfidence ? 3 : 1;
 
-            Point2f p2(skel[skel_idx][SKEL_SEGMENTS[i+1]][0].as<float>(), skel[skel_idx][SKEL_SEGMENTS[i+1]][1].as<float>());
+            Point2f p2(skel[to_string(skel_idx)][SKEL_SEGMENTS[i+1]+1][0].asFloat(), skel[to_string(skel_idx)][SKEL_SEGMENTS[i+1]+1][1].asFloat());
 
             cv::line(image, p1, p2, Scalar(200,100,20), width, cv::LINE_AA);
         }
 
-        for(size_t i = 0; i < NB_SKEL_FEATURES; i++) {
-            float confidence = skel[skel_idx][i][2].as<float>();
+        for(uint i = 0; i < NB_SKEL_FEATURES; i++) {
+            float confidence = skel[to_string(skel_idx)][i+1][2].asFloat();
             if (confidence < SKEL_FEATURE_LOW_CONFIDENCE_THRESHOLD) continue;
 
-            Point2f p(skel[skel_idx][i][0].as<float>(), skel[skel_idx][i][1].as<float>());
+            Point2f p(skel[to_string(skel_idx)][i+1][0].asFloat(), skel[to_string(skel_idx)][i+1][1].asFloat());
             cv::circle(image, p, 5, Scalar(200,100,20), -1, cv::LINE_AA);
         }
     }
@@ -106,34 +117,42 @@ cv::Mat drawSkeleton(cv::Mat image, YAML::Node skel) {
     return image;
 }
 
-cv::Mat drawFace(cv::Mat image, YAML::Node face) {
+cv::Mat drawFace(cv::Mat image, Json::Value face) {
 
-    for(size_t face_idx = 1; face_idx <= face.size(); face_idx++) {
-        for(size_t i = 0; i < FACE_SEGMENTS.size(); i+=2) {
+    for(uint face_idx = 1; face_idx <= face.size(); face_idx++) {
+        for(uint i = 0; i < FACE_SEGMENTS.size(); i+=2) {
 
-            float confidence1 = face[face_idx][FACE_SEGMENTS[i]][2].as<float>();
+            float confidence1 = face[to_string(face_idx)][FACE_SEGMENTS[i]+1][2].asFloat();
             if (confidence1 < FACE_FEATURE_LOW_CONFIDENCE_THRESHOLD) continue;
 
-            Point2f p1(face[face_idx][FACE_SEGMENTS[i]][0].as<float>(), face[face_idx][FACE_SEGMENTS[i]][1].as<float>());
+            Point2f p1(face[to_string(face_idx)][FACE_SEGMENTS[i]+1][0].asFloat(), face[to_string(face_idx)][FACE_SEGMENTS[i]+1][1].asFloat());
 
-            float confidence2 = face[face_idx][FACE_SEGMENTS[i+1]][2].as<float>();
+            float confidence2 = face[to_string(face_idx)][FACE_SEGMENTS[i+1]+1][2].asFloat();
             if (confidence2 < FACE_FEATURE_LOW_CONFIDENCE_THRESHOLD) continue;
 
             bool highconfidence = (confidence1 > FACE_FEATURE_HIGH_CONFIDENCE_THRESHOLD && confidence2 > FACE_FEATURE_HIGH_CONFIDENCE_THRESHOLD); 
 
             int width = highconfidence ? 2 : 1;
 
-            Point2f p2(face[face_idx][FACE_SEGMENTS[i+1]][0].as<float>(), face[face_idx][FACE_SEGMENTS[i+1]][1].as<float>());
+            Point2f p2(face[to_string(face_idx)][FACE_SEGMENTS[i+1]+1][0].asFloat(), face[to_string(face_idx)][FACE_SEGMENTS[i+1]+1][1].asFloat());
 
             cv::line(image, p1, p2, Scalar(20,100,200), width, cv::LINE_AA);
         }
 
+        //for(uint i = 0; i < NB_FACE_FEATURES - 2; i++) {
+        //    float confidence = face[face_idx][i+1][2].asFloat();
+        //    if (confidence < FACE_FEATURE_CONFIDENCE_THRESHOLD) continue;
+
+        //    Point2f p(face[face_idx][i+1][0].asFloat(), face[face_idx][i+1][1].asFloat());
+        //    cv::circle(image, p, 2, Scalar(50,100,200), -1, cv::LINE_AA);
+        //}
+
         // pupils
-        for(size_t i = 68; i < NB_FACE_FEATURES; i++) {
-            float confidence = face[face_idx][i][2].as<float>();
+        for(uint i = 68; i < NB_FACE_FEATURES; i++) {
+            float confidence = face[to_string(face_idx)][i+1][2].asFloat();
             if (confidence < PUPILS_CONFIDENCE_THRESHOLD) continue;
 
-            Point2f p(face[face_idx][i][0].as<float>(), face[face_idx][i][1].as<float>());
+            Point2f p(face[to_string(face_idx)][i+1][0].asFloat(), face[to_string(face_idx)][i+1][1].asFloat());
             cv::circle(image, p, 3, Scalar(50,200,100), 1, cv::LINE_AA);
         }
     }
@@ -141,10 +160,40 @@ cv::Mat drawFace(cv::Mat image, YAML::Node face) {
     return image;
 }
 
-cv::Mat drawPose(cv::Mat image, YAML::Node frame) {
+cv::Mat drawHands(cv::Mat image, Json::Value hand) {
+
+    for(uint hand_idx = 1; hand_idx <= hand.size(); hand_idx++) {
+        for(auto handeness : {"left", "right"}) {
+            for(uint i = 0; i < HAND_SEGMENTS.size(); i+=2) {
+
+                float confidence1 = hand[to_string(hand_idx)][handeness][HAND_SEGMENTS[i]+1][2].asFloat();
+                if (confidence1 < HAND_FEATURE_LOW_CONFIDENCE_THRESHOLD) continue;
+
+                Point2f p1(hand[to_string(hand_idx)][handeness][HAND_SEGMENTS[i]+1][0].asFloat(), hand[to_string(hand_idx)][handeness][HAND_SEGMENTS[i]+1][1].asFloat());
+
+                float confidence2 = hand[to_string(hand_idx)][handeness][HAND_SEGMENTS[i+1]+1][2].asFloat();
+                if (confidence2 < HAND_FEATURE_LOW_CONFIDENCE_THRESHOLD) continue;
+
+                bool highconfidence = (confidence1 > HAND_FEATURE_HIGH_CONFIDENCE_THRESHOLD && confidence2 > HAND_FEATURE_HIGH_CONFIDENCE_THRESHOLD); 
+
+                int width = highconfidence ? 2 : 1;
+
+                Point2f p2(hand[to_string(hand_idx)][handeness][HAND_SEGMENTS[i+1]+1][0].asFloat(), hand[to_string(hand_idx)][handeness][HAND_SEGMENTS[i+1]+1][1].asFloat());
+
+                cv::line(image, p1, p2, Scalar(20,100,200), width, cv::LINE_AA);
+            }
+        }
+    }
+
+    return image;
+}
+
+
+cv::Mat drawPose(cv::Mat image, Json::Value frame) {
 
     auto img1 = drawSkeleton(image, frame["poses"]);
-    return drawFace(img1, frame["faces"]);
+    auto img2 = drawHands(image, frame["hands"]);
+    return drawFace(img2, frame["faces"]);
 
 }
 
@@ -168,8 +217,9 @@ int main(int argc, char **argv) {
         ("version,v", "shows version and exits")
         ("topic", po::value<string>(), "topic to process (must be of type CompressedImage)")
         ("path", po::value<string>(), "record path (must contain experiment.yaml and freeplay.bag)")
-        ("face", po::value<bool>()->default_value(true), "detect faces as well")
-        ("hand", po::value<bool>()->default_value(true), "detect hands as well")
+        ("skeleton", po::value<bool>()->default_value(true), "display skeletons")
+        ("face", po::value<bool>()->default_value(true), "display faces")
+        ("hand", po::value<bool>()->default_value(true), "display hands")
         ;
 
     po::variables_map vm;
@@ -211,11 +261,17 @@ int main(int argc, char **argv) {
 
     cout << view.size() << " messages to process" << endl << endl;
 
+    Json::Value root;
+
     cout << "Opening " << POSES_FILE << "..." << flush;
+    auto start = std::chrono::system_clock::now();
+    std::ifstream file(vm["path"].as<string>() + "/" + POSES_FILE);
+    file >> root;
 
-    YAML::Node posesYaml = YAML::LoadFile(vm["path"].as<string>() + "/" + POSES_FILE);
+    auto end = std::chrono::system_clock::now();
+    auto elapsed = end - start;
 
-    cout << "done" << endl;
+    cout << "done (took " << std::chrono::duration_cast<std::chrono::seconds>(elapsed).count() << "s)" << endl;
 
 
     int idx = 0;
@@ -230,7 +286,7 @@ int main(int argc, char **argv) {
             auto cvimg = imdecode(compressed_rgb->data,1);
 
 
-            cvimg = drawPose(cvimg, posesYaml[topic]["frames"][idx]);
+            cvimg = drawPose(cvimg, root[topic]["frames"][1]);
 
 
             imshow(topic, cvimg);

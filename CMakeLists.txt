@@ -67,6 +67,10 @@ if(${WITH_OPENPOSE})
     )
 endif()
 
+add_executable(pose_analysis src/pose_analysis.cpp)
+target_link_libraries(pose_analysis ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})
+
+
 add_executable(replay_with_poses src/replay_with_poses.cpp src/jsoncpp.cpp)
 target_link_libraries(replay_with_poses ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})
 

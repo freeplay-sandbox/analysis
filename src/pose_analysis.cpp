@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 
+#include <Eigen/Geometry>
 
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -13,7 +14,8 @@
 
 
 #include <message_filters/subscriber.h>
-#include <message_filters/time_synchronizer.h>
+#include <message_filters/synchronizer.h>
+#include <message_filters/sync_policies/approximate_time.h>
 
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/CameraInfo.h>
@@ -21,6 +23,8 @@
 #include <sensor_msgs/image_encodings.h>
 
 #include <image_geometry/pinhole_camera_model.h>
+
+#include <depth_image_proc/depth_traits.h>
 
 #include <boost/program_options.hpp>
 
@@ -32,8 +36,12 @@ using namespace std;
 using namespace cv;
 namespace enc = sensor_msgs::image_encodings;
 namespace po = boost::program_options;
+using namespace depth_image_proc;
 
-image_geometry::PinholeCameraModel model;
+image_geometry::PinholeCameraModel rgb_model;
+image_geometry::PinholeCameraModel depth_model;
+
+uint nbSyncFrames = 0;
 
 /**
  * Inherits from message_filters::SimpleFilter<M>
@@ -49,10 +57,82 @@ class BagSubscriber : public message_filters::SimpleFilter<M>
         }
 };
 
-// Callback for synchronized messages
-void callback(const sensor_msgs::CompressedImage::ConstPtr &img_msg, 
-              const sensor_msgs::CameraInfo::ConstPtr &info_msg)
+
+/** Registration code taken from https://github.com/ros-perception/image_pipeline/blob/indigo/depth_image_proc/src/nodelets/register.cpp
+*/
+template<typename T>
+void convert(const sensor_msgs::ImageConstPtr& depth_msg,
+             const sensor_msgs::ImageConstPtr& registered_msg,
+             const Eigen::Affine3d& depth_to_rgb)
 {
+//  // Allocate memory for registered depth image
+//  registered_msg->step = registered_msg->width * sizeof(T);
+//  registered_msg->data.resize( registered_msg->height * registered_msg->step );
+//  // data is already zero-filled in the uint16 case, but for floats we want to initialize everything to NaN.
+//  DepthTraits<T>::initializeBuffer(registered_msg->data);
+
+  // Extract all the parameters we need
+  double inv_depth_fx = 1.0 / depth_model.fx();
+  double inv_depth_fy = 1.0 / depth_model.fy();
+  double depth_cx = depth_model.cx(), depth_cy = depth_model.cy();
+  double depth_Tx = depth_model.Tx(), depth_Ty = depth_model.Ty();
+  double rgb_fx = rgb_model.fx(), rgb_fy = rgb_model.fy();
+  double rgb_cx = rgb_model.cx(), rgb_cy = rgb_model.cy();
+  double rgb_Tx = rgb_model.Tx(), rgb_Ty = rgb_model.Ty();
+  
+  // Transform the depth values into the RGB frame
+  /// @todo When RGB is higher res, interpolate by rasterizing depth triangles onto the registered image  
+  const T* depth_row = reinterpret_cast<const T*>(&depth_msg->data[0]);
+  int row_step = depth_msg->step / sizeof(T);
+  T* registered_data = reinterpret_cast<T*>(&registered_msg->data[0]);
+  int raw_index = 0;
+  for (unsigned v = 0; v < depth_msg->height; ++v, depth_row += row_step)
+  {
+    for (unsigned u = 0; u < depth_msg->width; ++u, ++raw_index)
+    {
+      T raw_depth = depth_row[u];
+      if (!DepthTraits<T>::valid(raw_depth))
+        continue;
+      
+      double depth = DepthTraits<T>::toMeters(raw_depth);
+
+      /// @todo Combine all operations into one matrix multiply on (u,v,d)
+      // Reproject (u,v,Z) to (X,Y,Z,1) in depth camera frame
+      Eigen::Vector4d xyz_depth;
+      xyz_depth << ((u - depth_cx)*depth - depth_Tx) * inv_depth_fx,
+                   ((v - depth_cy)*depth - depth_Ty) * inv_depth_fy,
+                   depth,
+                   1;
+
+      // Transform to RGB camera frame
+      Eigen::Vector4d xyz_rgb = depth_to_rgb * xyz_depth;
+
+      // Project to (u,v) in RGB image
+      double inv_Z = 1.0 / xyz_rgb.z();
+      int u_rgb = (rgb_fx*xyz_rgb.x() + rgb_Tx)*inv_Z + rgb_cx + 0.5;
+      int v_rgb = (rgb_fy*xyz_rgb.y() + rgb_Ty)*inv_Z + rgb_cy + 0.5;
+      
+      if (u_rgb < 0 || u_rgb >= (int)registered_msg->width ||
+          v_rgb < 0 || v_rgb >= (int)registered_msg->height)
+        continue;
+      
+      T& reg_depth = registered_data[v_rgb*registered_msg->width + u_rgb];
+      T  new_depth = DepthTraits<T>::fromMeters(xyz_rgb.z());
+      // Validity and Z-buffer checks
+      if (!DepthTraits<T>::valid(reg_depth) || reg_depth > new_depth)
+        reg_depth = new_depth;
+    }
+  }
+}
+
+// Callback for synchronized messages
+void callback(const sensor_msgs::CompressedImage::ConstPtr &rgb_msg, 
+              const sensor_msgs::CameraInfo::ConstPtr &rgb_info_msg,
+              const sensor_msgs::CompressedImage::ConstPtr &depth_msg, 
+              const sensor_msgs::CameraInfo::ConstPtr &depth_info_msg)
+{
+
+    nbSyncFrames++;
 
     //for (size_t i = 0; i < info_msg->D.size(); ++i)
     //      {
@@ -60,15 +140,40 @@ void callback(const sensor_msgs::CompressedImage::ConstPtr &img_msg,
     //      }
     //cout << endl;
 
-    model.fromCameraInfo(info_msg);
-    auto image = imdecode(img_msg->data,1);
-    Mat rect;
+    rgb_model.fromCameraInfo(rgb_info_msg);
+    depth_model.fromCameraInfo(depth_info_msg);
 
-    model.rectifyImage(image, rect, cv::INTER_LINEAR);
+    auto rgb = imdecode(rgb_msg->data,1);
+
+    // compressedDepth is a PNG with an additional 12 bytes header. Remove the header and
+    // let OpenCV decode it.
+    decltype(depth_msg->data) depth_png(depth_msg->data.begin () + 12, depth_msg->data.end());
+    auto depth = imdecode(depth_png,1);
+
+    Mat depth_rect;
+
+    depth_model.rectifyImage(depth, depth_rect, cv::INTER_LINEAR);
+
+//    Eigen::Affine3d depth_to_rgb;
+//
+//    // Allocate registered depth image
+//    sensor_msgs::ImagePtr registered_msg( new sensor_msgs::Image );
+//    registered_msg->header.stamp    = depth_msg->header.stamp;
+//    registered_msg->header.frame_id = rgb_info_msg->header.frame_id;
+//    registered_msg->encoding = enc::TYPE_16UC1; // encoding RealSense SR300
+//
+//    cv::Size resolution = rgb_model.reducedResolution();
+//    registered_msg->height = resolution.height;
+//    registered_msg->width  = resolution.width;
+//
+//    convert<uint16_t>(depth_rect, registered_msg, depth_to_rgb); // uint16_t -> SR300 cameras encoding
+
 
     Mat debug;
-    addWeighted( image, 0.5, rect, 0.5, 0.0, debug);
-    imshow("rectification", debug);
+    //addWeighted( rgb, 0.5, depth_rect, 0.5, 0.0, debug);
+    //imshow("rectification", debug);
+    imshow("depth rect", depth_rect);
+    
     waitKey(10);
 }
 
@@ -82,7 +187,7 @@ int main(int argc, char **argv)
     desc.add_options()
         ("help,h", "produces help message")
         ("version,v", "shows version and exits")
-        ("topic", po::value<string>(), "topic to process (must be of type CompressedImage)")
+        ("ns", po::value<string>(), "camera namespace to process (must have /rgb and /depth sub namespaces)")
         ("models", po::value<string>()->default_value("models/"), "path to OpenPose models")
         ("path", po::value<string>(), "record path (must contain experiment.yaml and freeplay.bag)")
         ;
@@ -111,32 +216,51 @@ int main(int argc, char **argv)
 
     vector<string> topics;
 
-    string rgb_topic = vm["topic"].as<string>() + "/image_raw/compressed";
-    string rgb_info_topic = vm["topic"].as<string>() + "/camera_info";
+    string rgb_topic = vm["ns"].as<string>() + "/rgb/image_raw/compressed";
+    string rgb_info_topic = vm["ns"].as<string>() + "/rgb/camera_info";
+    string depth_topic = vm["ns"].as<string>() + "/depth/image_raw/compressedDepth";
+    string depth_info_topic = vm["ns"].as<string>() + "/depth/camera_info";
 
     topics.push_back(rgb_topic);
     topics.push_back(rgb_info_topic);
+    topics.push_back(depth_topic);
+    topics.push_back(depth_info_topic);
 
     rosbag::View view(bag, rosbag::TopicQuery(topics));
 
     // Set up fake subscribers to capture images
     BagSubscriber<sensor_msgs::CompressedImage> rgb_sub;
-    //BagSubscriber<sensor_msgs::CompressedImage> depth_sub;
+    BagSubscriber<sensor_msgs::CompressedImage> depth_sub;
     BagSubscriber<sensor_msgs::CameraInfo> rgb_info_sub;
-    //BagSubscriber<sensor_msgs::CameraInfo> depth_info_sub;
+    BagSubscriber<sensor_msgs::CameraInfo> depth_info_sub;
+
+    typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::CompressedImage,
+                                                            sensor_msgs::CameraInfo,
+                                                            sensor_msgs::CompressedImage,
+                                                            sensor_msgs::CameraInfo> SyncPolicy;
 
     // Use time synchronizer to make sure we get properly synchronized images
-    message_filters::TimeSynchronizer<sensor_msgs::CompressedImage, sensor_msgs::CameraInfo> sync(rgb_sub, rgb_info_sub, 25);
-    sync.registerCallback(boost::bind(&callback, _1, _2));
+    message_filters::Synchronizer<SyncPolicy> sync(SyncPolicy(10),
+                                                   rgb_sub,
+                                                   rgb_info_sub,
+                                                   depth_sub,
+                                                   depth_info_sub);
+    sync.getPolicy()->setMaxIntervalDuration(ros::Duration(1./30)); // SR300 RGB-D cameras are recorded at 30 FPS
 
-    // Load all messages into our stereo dataset
+    sync.registerCallback(boost::bind(&callback, _1, _2, _3, _4));
+
+    uint nbRgbFrames = 0;
+    uint nbDepthFrames = 0;
+
     for(rosbag::MessageInstance const m : view)
     {
         if (m.getTopic() == rgb_topic || ("/" + m.getTopic() == rgb_topic))
         {
             auto img = m.instantiate<sensor_msgs::CompressedImage>();
-            if (img != NULL)
+            if (img != NULL) {
+                nbRgbFrames++;
                 rgb_sub.newMessage(img);
+            }
         }
 
         if (m.getTopic() == rgb_info_topic || ("/" + m.getTopic() == rgb_info_topic))
@@ -145,7 +269,25 @@ int main(int argc, char **argv)
             if (info != NULL)
                 rgb_info_sub.newMessage(info);
         }
+        if (m.getTopic() == depth_topic || ("/" + m.getTopic() == depth_topic))
+        {
+            auto img = m.instantiate<sensor_msgs::CompressedImage>();
+            if (img != NULL) {
+                nbDepthFrames++;
+                depth_sub.newMessage(img);
+            }
+        }
+
+        if (m.getTopic() == depth_info_topic || ("/" + m.getTopic() == depth_info_topic))
+        {
+            auto info = m.instantiate<sensor_msgs::CameraInfo>();
+            if (info != NULL)
+                depth_info_sub.newMessage(info);
+        }
     }
+
+    cout << "Got " << nbRgbFrames << " RGB frames and " << nbDepthFrames << " depth frames." << endl;
+    cout << "Got " << nbSyncFrames << " synchronized RGB-D pairs (" << (100. * nbSyncFrames)/nbRgbFrames << "\% of RGB frames)" << endl;
 
     bag.close();
 }

@@ -8,6 +8,9 @@ set(VERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPAC
 
 add_definitions(-std=c++11 -DFREEPLAY_ANALYSIS_VERSION=${VERSION})
 
+find_package(Eigen3 REQUIRED)
+include_directories(${EIGEN3_INCLUDE_DIRS})
+
 find_package(Caffe)
 
 if(${Caffe_FOUND})

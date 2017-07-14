@@ -226,6 +226,18 @@ std::string makePoseFrame(const opPosesKeypoints poses, const opFacesKeypoints f
     return node;
 }
 
+/** writes the content of the 'json' to the harddrive, and clears it.
+ */
+void partialFlush(string& json, const string& path) {
+
+    std::ofstream fout(path, ios_base::app);
+    fout << json;
+    fout.close();
+    cout << "Wrote " << json.size() << " chars to " << path << endl;
+    json.clear();
+
+}
+
 int main(int argc, char **argv) {
 
 
@@ -271,6 +283,8 @@ int main(int argc, char **argv) {
         cerr << "You must provide a record path.\n";
         return 1;
     }
+
+    string poses_path = vm["path"].as<string>() + "/" + POSES_FILE;
 
     ///////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////
@@ -422,6 +436,9 @@ int main(int argc, char **argv) {
                     // Pop frame
                     std::shared_ptr<std::vector<op::Datum>> datumProcessed;
                     if (successfullyEmplaced && opWrapper.waitAndPop(datumProcessed)) {
+
+                        if(idx!=1) json += ",";
+
                         json += "{";
                         json += "\"ts\":" + to_string(compressed_rgb->header.stamp.toSec()) +",";
                         json += makePoseFrame(
@@ -429,10 +446,11 @@ int main(int argc, char **argv) {
                                             vm["face"].as<bool>() ? datumProcessed->at(0).faceKeypoints : NOFACES,
                                             vm["hand"].as<bool>() ? datumProcessed->at(0).handKeypoints : NOHANDS);
 
-                        json += "},";
+                        json += "}";
                         if (datumProcessed->at(0).faceRectangles.size() > 0) {
                             nb_images_with_face++;
                         }
+                        partialFlush(json, poses_path);
 
                         //imshow("pose", datumProcessed->at(0).cvOutputData);
                         //waitKey();
@@ -466,6 +484,10 @@ int main(int argc, char **argv) {
         }
         json += "]},";
 
+        if(interrupted) {
+            break;
+        }
+
         cout << "\x1b[2FTopic " << topic << " done (" << idx << " frames)" << endl << endl;
     }
 
@@ -475,10 +497,8 @@ int main(int argc, char **argv) {
     }
 
     json += "}";
+    partialFlush(json, poses_path);
 
-    std::ofstream fout(vm["path"].as<string>() + "/" + POSES_FILE);
-    fout << json;
-    cout << "Wrote " << vm["path"].as<string>() + "/" + POSES_FILE << endl;
     auto end = std::chrono::system_clock::now();
     auto fps = total_idx/ ((double)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() * 1e-3);
     auto d = std::chrono::duration_cast<std::chrono::seconds>(end-start).count();

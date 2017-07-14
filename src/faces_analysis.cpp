@@ -343,7 +343,7 @@ int main(int argc, char **argv) {
     const op::WrapperStructOutput wrapperStructOutput{displayGui,
                                                       guiVerbose, 
                                                       fullScreen,
-                                                      "points", // write keypoints -- path
+                                                      "", // write keypoints -- path
                                                       op::DataFormat::Yaml,
                                                       "", // Directory to write people pose data in *.json format, compatible with any OpenCV version
                                                       "", // Full file path to write people pose data with *.json COCO validation format

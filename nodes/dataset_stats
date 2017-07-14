@@ -12,7 +12,7 @@ from rosbag.bag import Bag
 
 #         (topic name, short name, nominal expected publication rate)
 TOPICS = [("/tf", "tf", -1),
-          ("camera_purple/rgb/camera_info", "p/rgb/img", 30),
+          ("camera_purple/rgb/camera_info", "p/rgb/info", 30),
           ("camera_purple/rgb/image_raw/compressed", "p/rgb/img", 30),
           ("camera_yellow/rgb/camera_info", "y/rgb/info", 30),
           ("camera_yellow/rgb/image_raw/compressed", "y/rgb/img", 30),

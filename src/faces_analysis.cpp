@@ -233,7 +233,7 @@ void partialFlush(string& json, const string& path) {
     std::ofstream fout(path, ios_base::app);
     fout << json;
     fout.close();
-    cout << "Wrote " << json.size() << " chars to " << path << endl;
+    //cout << "Wrote " << json.size() << " chars to " << path << endl;
     json.clear();
 
 }
@@ -503,6 +503,7 @@ int main(int argc, char **argv) {
     auto fps = total_idx/ ((double)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() * 1e-3);
     auto d = std::chrono::duration_cast<std::chrono::seconds>(end-start).count();
     cout << "Total duration: " << d / 3600 << ":" << (d%3600) / 60 << ":" << ((d%3600)%60) << " (" << std::fixed << std::setprecision(1) << fps << " fps)" << endl;
+    cout << "Pose data saved to " << poses_path << endl;
 
     bag.close();
 }

@@ -390,6 +390,8 @@ int main(int argc, char **argv) {
 
     string json("{");
 
+    auto start = std::chrono::system_clock::now();
+
     for (const auto& topic : topics) {
         json += "\"" + topic + "\":{\"frames\":[";
 
@@ -442,8 +444,12 @@ int main(int argc, char **argv) {
 
 
                 int percent = total_idx * 100 / view.size();
+
+                auto intermediate = std::chrono::system_clock::now();
+                auto fps = total_idx/ ((double)std::chrono::duration_cast<std::chrono::milliseconds>(intermediate-start).count() * 1e-3);
+
                 //if (percent != last_percent) {
-                cout << "\x1b[FDone " << percent << "% (" << total_idx << " images)" << endl;
+                cout << "\x1b[FDone " << percent << "% (" << total_idx << " images, " << std::fixed << std::setprecision(1) << fps << " fps)" << endl;
                 //    last_percent = percent;
                 //}
 
@@ -473,6 +479,10 @@ int main(int argc, char **argv) {
     std::ofstream fout(vm["path"].as<string>() + "/" + POSES_FILE);
     fout << json;
     cout << "Wrote " << vm["path"].as<string>() + "/" + POSES_FILE << endl;
+    auto end = std::chrono::system_clock::now();
+    auto fps = total_idx/ ((double)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() * 1e-3);
+    auto d = std::chrono::duration_cast<std::chrono::seconds>(end-start).count();
+    cout << "Total duration: " << d / 3600 << ":" << (d%3600) / 60 << ":" << ((d%3600)%60) << " (" << std::fixed << std::setprecision(1) << fps << " fps)" << endl;
 
     bag.close();
 }

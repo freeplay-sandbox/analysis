@@ -61,68 +61,66 @@ class BagSubscriber : public message_filters::SimpleFilter<M>
 /** Registration code taken from https://github.com/ros-perception/image_pipeline/blob/indigo/depth_image_proc/src/nodelets/register.cpp
 */
 template<typename T>
-void convert(const sensor_msgs::ImageConstPtr& depth_msg,
-             const sensor_msgs::ImageConstPtr& registered_msg,
-             const Eigen::Affine3d& depth_to_rgb)
+cv::Mat convert(cv::Mat depth,
+                cv::Size size,
+                const Eigen::Affine3d& depth_to_rgb)
 {
-//  // Allocate memory for registered depth image
-//  registered_msg->step = registered_msg->width * sizeof(T);
-//  registered_msg->data.resize( registered_msg->height * registered_msg->step );
-//  // data is already zero-filled in the uint16 case, but for floats we want to initialize everything to NaN.
-//  DepthTraits<T>::initializeBuffer(registered_msg->data);
+    cv::Mat registered_image = Mat::zeros(size, CV_16UC1);
 
-  // Extract all the parameters we need
-  double inv_depth_fx = 1.0 / depth_model.fx();
-  double inv_depth_fy = 1.0 / depth_model.fy();
-  double depth_cx = depth_model.cx(), depth_cy = depth_model.cy();
-  double depth_Tx = depth_model.Tx(), depth_Ty = depth_model.Ty();
-  double rgb_fx = rgb_model.fx(), rgb_fy = rgb_model.fy();
-  double rgb_cx = rgb_model.cx(), rgb_cy = rgb_model.cy();
-  double rgb_Tx = rgb_model.Tx(), rgb_Ty = rgb_model.Ty();
-  
-  // Transform the depth values into the RGB frame
-  /// @todo When RGB is higher res, interpolate by rasterizing depth triangles onto the registered image  
-  const T* depth_row = reinterpret_cast<const T*>(&depth_msg->data[0]);
-  int row_step = depth_msg->step / sizeof(T);
-  T* registered_data = reinterpret_cast<T*>(&registered_msg->data[0]);
-  int raw_index = 0;
-  for (unsigned v = 0; v < depth_msg->height; ++v, depth_row += row_step)
-  {
-    for (unsigned u = 0; u < depth_msg->width; ++u, ++raw_index)
+    // Extract all the parameters we need
+    double inv_depth_fx = 1.0 / depth_model.fx();
+    double inv_depth_fy = 1.0 / depth_model.fy();
+    double depth_cx = depth_model.cx(), depth_cy = depth_model.cy();
+    double depth_Tx = depth_model.Tx(), depth_Ty = depth_model.Ty();
+    double rgb_fx = rgb_model.fx(), rgb_fy = rgb_model.fy();
+    double rgb_cx = rgb_model.cx(), rgb_cy = rgb_model.cy();
+    double rgb_Tx = rgb_model.Tx(), rgb_Ty = rgb_model.Ty();
+
+    // Transform the depth values into the RGB frame
+    /// @todo When RGB is higher res, interpolate by rasterizing depth triangles onto the registered image  
+    const T* depth_row = reinterpret_cast<const T*>(&depth.data[0]);
+    int row_step = depth.step / sizeof(T);
+    T* registered_data = reinterpret_cast<T*>(&registered_image.data[0]);
+    int raw_index = 0;
+    for (int v = 0; v < depth.size().height; ++v, depth_row += row_step)
     {
-      T raw_depth = depth_row[u];
-      if (!DepthTraits<T>::valid(raw_depth))
-        continue;
-      
-      double depth = DepthTraits<T>::toMeters(raw_depth);
+        for (int u = 0; u < depth.size().width; ++u, ++raw_index)
+        {
+            T raw_depth = depth_row[u];
+            if (!DepthTraits<T>::valid(raw_depth))
+                continue;
 
-      /// @todo Combine all operations into one matrix multiply on (u,v,d)
-      // Reproject (u,v,Z) to (X,Y,Z,1) in depth camera frame
-      Eigen::Vector4d xyz_depth;
-      xyz_depth << ((u - depth_cx)*depth - depth_Tx) * inv_depth_fx,
-                   ((v - depth_cy)*depth - depth_Ty) * inv_depth_fy,
-                   depth,
-                   1;
+            double depth = DepthTraits<T>::toMeters(raw_depth);
 
-      // Transform to RGB camera frame
-      Eigen::Vector4d xyz_rgb = depth_to_rgb * xyz_depth;
+            /// @todo Combine all operations into one matrix multiply on (u,v,d)
+            // Reproject (u,v,Z) to (X,Y,Z,1) in depth camera frame
+            Eigen::Vector4d xyz_depth;
+            xyz_depth << ((u - depth_cx)*depth - depth_Tx) * inv_depth_fx,
+                      ((v - depth_cy)*depth - depth_Ty) * inv_depth_fy,
+                      depth,
+                      1;
 
-      // Project to (u,v) in RGB image
-      double inv_Z = 1.0 / xyz_rgb.z();
-      int u_rgb = (rgb_fx*xyz_rgb.x() + rgb_Tx)*inv_Z + rgb_cx + 0.5;
-      int v_rgb = (rgb_fy*xyz_rgb.y() + rgb_Ty)*inv_Z + rgb_cy + 0.5;
-      
-      if (u_rgb < 0 || u_rgb >= (int)registered_msg->width ||
-          v_rgb < 0 || v_rgb >= (int)registered_msg->height)
-        continue;
-      
-      T& reg_depth = registered_data[v_rgb*registered_msg->width + u_rgb];
-      T  new_depth = DepthTraits<T>::fromMeters(xyz_rgb.z());
-      // Validity and Z-buffer checks
-      if (!DepthTraits<T>::valid(reg_depth) || reg_depth > new_depth)
-        reg_depth = new_depth;
+            // Transform to RGB camera frame
+            Eigen::Vector4d xyz_rgb = depth_to_rgb * xyz_depth;
+
+            // Project to (u,v) in RGB image
+            double inv_Z = 1.0 / xyz_rgb.z();
+            int u_rgb = (rgb_fx*xyz_rgb.x() + rgb_Tx)*inv_Z + rgb_cx + 0.5;
+            int v_rgb = (rgb_fy*xyz_rgb.y() + rgb_Ty)*inv_Z + rgb_cy + 0.5;
+
+            if (u_rgb < 0 || u_rgb >= (int)registered_image.size().width ||
+                    v_rgb < 0 || v_rgb >= (int)registered_image.size().height)
+                continue;
+
+            T& reg_depth = registered_data[v_rgb*registered_image.size().width + u_rgb];
+            T  new_depth = DepthTraits<T>::fromMeters(xyz_rgb.z());
+            // Validity and Z-buffer checks
+            if (!DepthTraits<T>::valid(reg_depth) || reg_depth > new_depth)
+                reg_depth = new_depth;
+        }
     }
-  }
+
+    return registered_image;
 }
 
 // Callback for synchronized messages
@@ -143,38 +141,45 @@ void callback(const sensor_msgs::CompressedImage::ConstPtr &rgb_msg,
     rgb_model.fromCameraInfo(rgb_info_msg);
     depth_model.fromCameraInfo(depth_info_msg);
 
-    auto rgb = imdecode(rgb_msg->data,1);
+    auto rgb = imdecode(rgb_msg->data, 1);
 
     // compressedDepth is a PNG with an additional 12 bytes header. Remove the header and
     // let OpenCV decode it.
+    // Note that our encoding is 16UC1 and quantization is not perform in that case (cf https://github.com/ros-perception/image_transport_plugins/blob/indigo-devel/compressed_depth_image_transport/src/codec.cpp#L135)
     decltype(depth_msg->data) depth_png(depth_msg->data.begin () + 12, depth_msg->data.end());
-    auto depth = imdecode(depth_png,1);
+    auto depth = imdecode(depth_png, CV_LOAD_IMAGE_UNCHANGED);
 
     Mat depth_rect;
 
     depth_model.rectifyImage(depth, depth_rect, cv::INTER_LINEAR);
 
-//    Eigen::Affine3d depth_to_rgb;
-//
-//    // Allocate registered depth image
-//    sensor_msgs::ImagePtr registered_msg( new sensor_msgs::Image );
-//    registered_msg->header.stamp    = depth_msg->header.stamp;
-//    registered_msg->header.frame_id = rgb_info_msg->header.frame_id;
-//    registered_msg->encoding = enc::TYPE_16UC1; // encoding RealSense SR300
-//
-//    cv::Size resolution = rgb_model.reducedResolution();
-//    registered_msg->height = resolution.height;
-//    registered_msg->width  = resolution.width;
-//
-//    convert<uint16_t>(depth_rect, registered_msg, depth_to_rgb); // uint16_t -> SR300 cameras encoding
+    // SR300 transformation between IR camera and RGB camera
+    Eigen::Affine3d depth_to_rgb = Eigen::Translation3d(0.0038,   // x
+                                                        -0.0247,  // y
+                                                        0.0007) * // z
+                                   Eigen::Quaterniond(1.0,   // w
+                                                      0.0,   // x
+                                                      0.0,   // y
+                                                      0.0);  // z
 
+    cv::Size resolution = rgb_model.reducedResolution();
+
+    auto registered_depth = convert<uint16_t>(depth_rect, resolution, depth_to_rgb); // uint16_t -> SR300 cameras encoding
+
+    Mat depth8bit;
+    registered_depth.convertTo(depth8bit, CV_8UC1, 1./256);
 
     Mat debug;
-    //addWeighted( rgb, 0.5, depth_rect, 0.5, 0.0, debug);
-    //imshow("rectification", debug);
-    imshow("depth rect", depth_rect);
+    Mat greyscale;
+    cvtColor(rgb, greyscale, CV_RGB2GRAY);
+    resize(depth8bit, depth8bit, rgb.size());
+    depth8bit *= 100;
+    debug = greyscale * 0.5 + depth8bit * 0.5;
+    imshow("rectification", debug);
+    //imshow("depth rect", depth_rect);
+    //imshow("depth rect", depth8bit);
     
-    waitKey(10);
+    waitKey();
 }
 
 int main(int argc, char **argv) 

@@ -39,7 +39,7 @@ namespace enc = sensor_msgs::image_encodings;
 namespace po = boost::program_options;
 
 
-const string POSES_FILE ("poses.json");
+const string POSES_SUFFIX (".poses.json");
 
 /**
  * Format of poses.json:
@@ -257,7 +257,8 @@ int main(int argc, char **argv) {
         ("help,h", "produces help message")
         ("version,v", "shows version and exits")
         ("models", po::value<string>()->default_value("models/"), "path to OpenPose models")
-        ("path", po::value<string>(), "record path (must contain experiment.yaml and freeplay.bag)")
+        ("bag", po::value<string>()->default_value("freeplay"), "Bag file, without the '.bag' extension")
+        ("path", po::value<string>(), "record path (must contain experiment.yaml and the bag file)")
         ("face", po::value<bool>()->default_value(true), "detect faces as well")
         ("hand", po::value<bool>()->default_value(true), "detect hands as well")
         ;
@@ -284,7 +285,6 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    string poses_path = vm["path"].as<string>() + "/" + POSES_FILE;
 
     ///////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////
@@ -382,8 +382,12 @@ int main(int argc, char **argv) {
     ///////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////
 
-    cout << "Opening " << vm["path"].as<string>() << "/freeplay.bag..." << endl;
-    rosbag::Bag bag(vm["path"].as<string>() + "/freeplay.bag", rosbag::bagmode::Read);
+    string bagname = vm["bag"].as<string>();
+
+    string poses_path = vm["path"].as<string>() + "/" + bagname + POSES_SUFFIX;
+
+    cout << "Opening " << vm["path"].as<string>() << "/" << bagname << ".bag..." << endl;
+    rosbag::Bag bag(vm["path"].as<string>() + "/" + bagname + ".bag", rosbag::bagmode::Read);
 
     string purple_topic("camera_purple/rgb/image_raw/compressed");
     string yellow_topic("camera_yellow/rgb/image_raw/compressed");

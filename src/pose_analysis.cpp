@@ -154,8 +154,8 @@ void callback(const sensor_msgs::CompressedImage::ConstPtr &rgb_msg,
     depth_model.rectifyImage(depth, depth_rect, cv::INTER_LINEAR);
 
     // SR300 transformation between IR camera and RGB camera
-    Eigen::Affine3d depth_to_rgb = Eigen::Translation3d(0.0038,   // x
-                                                        -0.0247,  // y
+    Eigen::Affine3d depth_to_rgb = Eigen::Translation3d(0.03,  // x
+                                                        0.0038,  // y
                                                         0.0007) * // z
                                    Eigen::Quaterniond(1.0,   // w
                                                       0.0,   // x
@@ -174,12 +174,12 @@ void callback(const sensor_msgs::CompressedImage::ConstPtr &rgb_msg,
     cvtColor(rgb, greyscale, CV_RGB2GRAY);
     resize(depth8bit, depth8bit, rgb.size());
     depth8bit *= 100;
-    debug = greyscale * 0.5 + depth8bit * 0.5;
+    debug = greyscale * 0.7 + depth8bit * 0.3;
     imshow("rectification", debug);
     //imshow("depth rect", depth_rect);
     //imshow("depth rect", depth8bit);
     
-    waitKey();
+    waitKey(10);
 }
 
 int main(int argc, char **argv) 

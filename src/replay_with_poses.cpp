@@ -36,6 +36,31 @@ using namespace cv;
 namespace enc = sensor_msgs::image_encodings;
 namespace po = boost::program_options;
 
+// color palette generated from http://paletton.com
+const Scalar A (110, 37,110); // purple
+const Scalar A1(166,111,166);
+const Scalar A2(138, 69,138);
+const Scalar A3( 83, 14, 83);
+const Scalar A4( 55,  0, 55);
+                           
+const Scalar B ( 57, 80,170); // saumon
+const Scalar B1(170,188,255);
+const Scalar B2(106,128,212);
+const Scalar B3( 21, 43,128);
+const Scalar B4(  0, 18, 85);
+                           
+const Scalar C ( 76,121, 40); // teal
+const Scalar C1(148,182,121);
+const Scalar C2(109,151, 76);
+const Scalar C3( 48, 91, 15);
+const Scalar C4( 26, 61,  0);
+                           
+const Scalar D ( 55,164,145); // lime
+const Scalar D1(164,246,232);
+const Scalar D2(103,205,188);
+const Scalar D3( 21,123,106);
+const Scalar D4(  0, 82, 68);
+
 
 //const string BAG_FILE ("rectified_streams.bag");
 const string BAG_FILE ("freeplay.bag");
@@ -44,39 +69,62 @@ const string POSES_FILE ("poses.json");
 const float SKEL_FEATURE_LOW_CONFIDENCE_THRESHOLD = 0.05;
 const float SKEL_FEATURE_HIGH_CONFIDENCE_THRESHOLD = 0.2;
 const uint NB_SKEL_FEATURES = 18;
-const vector<uint>  SKEL_SEGMENTS {  0,1, // neck
-                                      1,2,    2,3,   3,4, // right arm
-                                      1,5,    5,6,   6,7, // left arm
-                                      1,8,   8,9,  9,10, // right leg
-                                      1,11,  11,12,  12,13, // left leg
-                                      0,14,  14,16, // right eye/ear
-                                      0,15,  15,17 // left eye/ear
+const vector<uint>  SKEL_SEGMENTS {   0,1, // neck
+                                      1,2,   2,3, 3,4, // right arm
+                                      1,5,   5,6, 6,7, // left arm
+                                      1,8,   8,9, 9,10, // right leg
+                                     1,11, 11,12, 12,13, // left leg
+                                     0,14, 14,16, // right eye/ear
+                                     0,15, 15,17 // left eye/ear
                                     };
+const vector<Scalar> SKEL_COLORS {      C1,
+                                        A3,    A,     A,
+                                        A3,    A,     A,
+                                        A3,    A,     A,
+                                        A3,    A,     A,
+                                         C,   C4,
+                                         C,   C4
+                                 };
 
 const float FACE_FEATURE_HIGH_CONFIDENCE_THRESHOLD = 0.4;
 const float FACE_FEATURE_LOW_CONFIDENCE_THRESHOLD = 0.2;
 const float PUPILS_CONFIDENCE_THRESHOLD = 0.8;
 const uint NB_FACE_FEATURES = 70;
-const vector<uint> FACE_SEGMENTS {  0,1,  1,2,    2,3,   3,4,   4,5,   5,6,   6,7,   7,8,   8,9,  9,10,  10,11,  11,12,  12,13,  13,14,  14,15,  15,16, // face contour
-                                    17,18,  18,19,  19,20, 20,21, // right eyebrow
-                                    22,23,  23,24, 24,25, 25,26, // left eyebrow
+const vector<uint> FACE_SEGMENTS {    0,1,   1,2,   2,3,   3,4,   4,5,   5,6,   6,7,   7,8,   8,9,  9,10, 10,11, 11,12, 12,13, 13,14, 14,15, 15,16, // face contour
+                                    17,18, 18,19, 19,20, 20,21, // right eyebrow
+                                    22,23, 23,24, 24,25, 25,26, // left eyebrow
                                     27,28, 28,29, 29,30, // nose line
-                                    31,32,  32,33,  33,34,  34,35, // nosetrils
-                                    36,37,  37,38,  38,39,  39,40,  40,41, 41,36, // right eye
-                                    42,43,  43,44, 44,45, 45,46, 46,47, 47,42, // left eye
-                                    48,49, 49,50,  50,51,  51,52,  52,53,  53,54,  54,55,  55,56,  56,57,  57,58, 58,59,  59,48, // outer lips
+                                    31,32, 32,33, 33,34, 34,35, // nosetrils
+                                    36,37, 37,38, 38,39, 39,40, 40,41, 41,36, // right eye
+                                    42,43, 43,44, 44,45, 45,46, 46,47, 47,42, // left eye
+                                    48,49, 49,50, 50,51, 51,52, 52,53, 53,54, 54,55, 55,56, 56,57, 57,58, 58,59, 59,48, // outer lips
                                     60,61, 61,62, 62,63, 63,64, 64,65, 65,66, 66,67, 67,60 // inner lips
                                    };
+const vector<Scalar> FACE_COLORS {      D,     D,     D,     D,     D,     D,     D,     D,     D,     D,     D,     D,     D,     D,      D,    D,
+                                       D4,    D4,    D4,    D4,
+                                       D4,    D4,    D4,    D4,
+                                        D,     D,     D,
+                                        D,     D,     D,     D,
+                                       D4,    D4,    D4,    D4,    D4,    D4,
+                                       D4,    D4,    D4,    D4,    D4,    D4,
+                                       D3,    D3,    D3,    D3,    D3,    D3,    D3,    D3,    D3,    D3,    D3,    D3,
+                                       D3,    D3,    D3,    D3,    D3,    D3,    D3,    D3
+                                };
 
 const float HAND_FEATURE_HIGH_CONFIDENCE_THRESHOLD = 0.4;
 const float HAND_FEATURE_LOW_CONFIDENCE_THRESHOLD = 0.2;
 const uint NB_HAND_FEATURES = 21;
-const vector<uint> HAND_SEGMENTS {  0,1,  1,2,    2,3,   3,4,  // thumb
-                                    0,5,  5,6,   6,7,   7,8, // index
-                                    0,9,  9,10,  10,11,  11,12, // middle finger
-                                    0,13, 13,14,  14,15,  15,16, // ring finger
-                                    0,17, 17,18,  18,19,  19,20 // little finger
+const vector<uint> HAND_SEGMENTS {   0,1,   1,2,   2,3,  3,4,  // thumb
+                                     0,5,   5,6,   6,7,  7,8, // index
+                                     0,9,  9,10, 10,11, 11,12, // middle finger
+                                    0,13, 13,14, 14,15, 15,16, // ring finger
+                                    0,17, 17,18, 18,19, 19,20 // little finger
                                    };
+const vector<Scalar> HAND_COLORS {      B3,   B,    B2,    B1,
+                                        B3,   B,    B2,    B1,
+                                        B3,   B,    B2,    B1,
+                                        B3,   B,    B2,    B1
+                                };
 
 bool interrupted = false;
 
@@ -107,7 +155,7 @@ cv::Mat drawSkeleton(cv::Mat image, Json::Value skel) {
 
             Point2f p2(w*skel[to_string(skel_idx)][SKEL_SEGMENTS[i+1]][0].asFloat(), h*skel[to_string(skel_idx)][SKEL_SEGMENTS[i+1]][1].asFloat());
 
-            cv::line(image, p1, p2, Scalar(200,100,20), width, cv::LINE_AA);
+            cv::line(image, p1, p2, SKEL_COLORS[i/2], width, cv::LINE_AA);
         }
 
         for(uint i = 0; i < NB_SKEL_FEATURES; i++) {
@@ -115,7 +163,7 @@ cv::Mat drawSkeleton(cv::Mat image, Json::Value skel) {
             if (confidence < SKEL_FEATURE_LOW_CONFIDENCE_THRESHOLD) continue;
 
             Point2f p(w*skel[to_string(skel_idx)][i][0].asFloat(), h*skel[to_string(skel_idx)][i][1].asFloat());
-            cv::circle(image, p, 5, Scalar(200,100,20), -1, cv::LINE_AA);
+            cv::circle(image, p, 5, A1, -1, cv::LINE_AA);
         }
     }
 
@@ -144,7 +192,7 @@ cv::Mat drawFace(cv::Mat image, Json::Value face) {
 
             Point2f p2(w*face[to_string(face_idx)][FACE_SEGMENTS[i+1]][0].asFloat(), h*face[to_string(face_idx)][FACE_SEGMENTS[i+1]][1].asFloat());
 
-            cv::line(image, p1, p2, Scalar(20,100,200), width, cv::LINE_AA);
+            cv::line(image, p1, p2, FACE_COLORS[i/2], width, cv::LINE_AA);
         }
 
         // pupils
@@ -153,7 +201,7 @@ cv::Mat drawFace(cv::Mat image, Json::Value face) {
             if (confidence < PUPILS_CONFIDENCE_THRESHOLD) continue;
 
             Point2f p(w*face[to_string(face_idx)][i][0].asFloat(), h*face[to_string(face_idx)][i][1].asFloat());
-            cv::circle(image, p, 3, Scalar(50,200,100), 1, cv::LINE_AA);
+            cv::circle(image, p, 3, B, 1, cv::LINE_AA);
         }
     }
 
@@ -183,7 +231,7 @@ cv::Mat drawHands(cv::Mat image, Json::Value hand) {
 
                 Point2f p2(w*hand[to_string(hand_idx)][handeness][HAND_SEGMENTS[i+1]][0].asFloat(), h*hand[to_string(hand_idx)][handeness][HAND_SEGMENTS[i+1]][1].asFloat());
 
-                cv::line(image, p1, p2, Scalar(20,200,20), width, cv::LINE_AA);
+                cv::line(image, p1, p2, HAND_COLORS[i/2], width, cv::LINE_AA);
             }
         }
     }

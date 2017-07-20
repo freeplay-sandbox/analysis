@@ -62,6 +62,33 @@ const Scalar D2(103,205,188);
 const Scalar D3( 21,123,106);
 const Scalar D4(  0, 82, 68);
 
+const Scalar E ( 57, 68,174); // light red
+const Scalar E1(170,178,255);
+const Scalar E2(106,116,212);
+const Scalar E3( 21, 31,128);
+const Scalar E4(  0,  8, 85);
+
+const Scalar F ( 57,108,174); // light brown
+const Scalar F1(170,207,255);
+const Scalar F2(106,152,212);
+const Scalar F3( 21, 67,128);
+const Scalar F4(  0, 37, 85);
+
+const Scalar G (102,107, 35); // blue
+const Scalar G1(153,157,105);
+const Scalar G2(126,131, 65);
+const Scalar G3( 74, 78, 13);
+const Scalar G4( 48, 52,  0);
+
+const Scalar H ( 62,131, 43); // green
+const Scalar H1(143,193,129);
+const Scalar H2( 98,161, 80);
+const Scalar H3( 34, 96, 16);
+const Scalar H4( 14, 64,  0);
+
+const Scalar WHITE(255,255,255);
+
+
 
 //const string BAG_FILE ("rectified_streams.bag");
 const string BAG_FILE ("freeplay.bag");
@@ -79,12 +106,12 @@ const vector<uint>  SKEL_SEGMENTS {   0,1, // neck
                                      0,15, 15,17 // left eye/ear
                                     };
 const vector<Scalar> SKEL_COLORS {      C1,
-                                        A3,    A,     A,
-                                        A3,    A,     A,
-                                        A3,    A,     A,
-                                        A3,    A,     A,
-                                         C,   C4,
-                                         C,   C4
+                                        H3,   H3,    H3,
+                                        F3,   F3,    F3,
+                                        D2,   D2,    D2,
+                                        E,     E,     E,
+                                        C1,   C1,
+                                        C1,   C1
                                  };
 
 const float FACE_FEATURE_HIGH_CONFIDENCE_THRESHOLD = 0.4;
@@ -121,10 +148,11 @@ const vector<uint> HAND_SEGMENTS {   0,1,   1,2,   2,3,  3,4,  // thumb
                                     0,13, 13,14, 14,15, 15,16, // ring finger
                                     0,17, 17,18, 18,19, 19,20 // little finger
                                    };
-const vector<Scalar> HAND_COLORS {      B3,   B,    B2,    B1,
-                                        B3,   B,    B2,    B1,
-                                        B3,   B,    B2,    B1,
-                                        B3,   B,    B2,    B1
+const vector<Scalar> HAND_COLORS {      G1,   G1,    G1,    G1,
+                                        G2,   G2,    G2,    G2,
+                                        G,   G,    G,    G,
+                                        G3,   G3,    G3,    G3,
+                                        G4,   G4,    G4,    G4
                                 };
 
 bool interrupted = false;

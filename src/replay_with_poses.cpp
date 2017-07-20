@@ -26,13 +26,14 @@
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
 
-#include "json/json.h"
+#include "json.hpp"
 
 #define STR_EXPAND(tok) #tok
 #define STR(tok) STR_EXPAND(tok)
 
 using namespace std;
 using namespace cv;
+using namespace nlohmann; // json
 namespace enc = sensor_msgs::image_encodings;
 namespace po = boost::program_options;
 
@@ -133,44 +134,45 @@ void my_handler(int s){
     interrupted = true; 
 }
 
-cv::Mat drawSkeleton(cv::Mat image, Json::Value skel) {
+cv::Mat drawSkeleton(cv::Mat image, json skel, bool bg=false) {
 
     auto w = image.size().width;
     auto h = image.size().height;
 
+
     for(uint skel_idx = 1; skel_idx <= skel.size(); skel_idx++) {
         for(uint i = 0; i < SKEL_SEGMENTS.size(); i+=2) {
 
-            float confidence1 = skel[to_string(skel_idx)][SKEL_SEGMENTS[i]][2].asFloat();
+            float confidence1 = skel[to_string(skel_idx)][SKEL_SEGMENTS[i]][2].get<float>();
             if (confidence1 < SKEL_FEATURE_LOW_CONFIDENCE_THRESHOLD) continue;
 
-            Point2f p1(w*skel[to_string(skel_idx)][SKEL_SEGMENTS[i]][0].asFloat(), h*skel[to_string(skel_idx)][SKEL_SEGMENTS[i]][1].asFloat());
+            Point2f p1(w*skel[to_string(skel_idx)][SKEL_SEGMENTS[i]][0].get<float>(), h*skel[to_string(skel_idx)][SKEL_SEGMENTS[i]][1].get<float>());
 
-            float confidence2 = skel[to_string(skel_idx)][SKEL_SEGMENTS[i+1]][2].asFloat();
+            float confidence2 = skel[to_string(skel_idx)][SKEL_SEGMENTS[i+1]][2].get<float>();
             if (confidence2 < SKEL_FEATURE_LOW_CONFIDENCE_THRESHOLD) continue;
 
             bool highconfidence = (confidence1 > SKEL_FEATURE_HIGH_CONFIDENCE_THRESHOLD && confidence2 > SKEL_FEATURE_HIGH_CONFIDENCE_THRESHOLD); 
 
-            int width = highconfidence ? 3 : 1;
+            int width = highconfidence ? (bg ? 4 : 2) : (bg? 2 : 1);
 
-            Point2f p2(w*skel[to_string(skel_idx)][SKEL_SEGMENTS[i+1]][0].asFloat(), h*skel[to_string(skel_idx)][SKEL_SEGMENTS[i+1]][1].asFloat());
+            Point2f p2(w*skel[to_string(skel_idx)][SKEL_SEGMENTS[i+1]][0].get<float>(), h*skel[to_string(skel_idx)][SKEL_SEGMENTS[i+1]][1].get<float>());
 
-            cv::line(image, p1, p2, SKEL_COLORS[i/2], width, cv::LINE_AA);
+            cv::line(image, p1, p2, bg ? WHITE : SKEL_COLORS[i/2], width, cv::LINE_AA);
         }
 
-        for(uint i = 0; i < NB_SKEL_FEATURES; i++) {
-            float confidence = skel[to_string(skel_idx)][i][2].asFloat();
+        for(uint i = 1; i < NB_SKEL_FEATURES; i++) { // [1-14] -> all features except on the face
+            float confidence = skel[to_string(skel_idx)][i][2].get<float>();
             if (confidence < SKEL_FEATURE_LOW_CONFIDENCE_THRESHOLD) continue;
 
-            Point2f p(w*skel[to_string(skel_idx)][i][0].asFloat(), h*skel[to_string(skel_idx)][i][1].asFloat());
-            cv::circle(image, p, 5, A1, -1, cv::LINE_AA);
+            Point2f p(w*skel[to_string(skel_idx)][i][0].get<float>(), h*skel[to_string(skel_idx)][i][1].get<float>());
+            cv::circle(image, p, bg ? 5 : 3, bg ? WHITE : SKEL_COLORS[i-1], -1, cv::LINE_AA);
         }
     }
 
     return image;
 }
 
-cv::Mat drawFace(cv::Mat image, Json::Value face) {
+cv::Mat drawFace(cv::Mat image, json face, bool bg=false) {
 
     auto w = image.size().width;
     auto h = image.size().height;
@@ -178,29 +180,29 @@ cv::Mat drawFace(cv::Mat image, Json::Value face) {
     for(uint face_idx = 1; face_idx <= face.size(); face_idx++) {
         for(uint i = 0; i < FACE_SEGMENTS.size(); i+=2) {
 
-            float confidence1 = face[to_string(face_idx)][FACE_SEGMENTS[i]][2].asFloat();
+            float confidence1 = face[to_string(face_idx)][FACE_SEGMENTS[i]][2].get<float>();
             if (confidence1 < FACE_FEATURE_LOW_CONFIDENCE_THRESHOLD) continue;
 
-            Point2f p1(w*face[to_string(face_idx)][FACE_SEGMENTS[i]][0].asFloat(), h*face[to_string(face_idx)][FACE_SEGMENTS[i]][1].asFloat());
+            Point2f p1(w*face[to_string(face_idx)][FACE_SEGMENTS[i]][0].get<float>(), h*face[to_string(face_idx)][FACE_SEGMENTS[i]][1].get<float>());
 
-            float confidence2 = face[to_string(face_idx)][FACE_SEGMENTS[i+1]][2].asFloat();
+            float confidence2 = face[to_string(face_idx)][FACE_SEGMENTS[i+1]][2].get<float>();
             if (confidence2 < FACE_FEATURE_LOW_CONFIDENCE_THRESHOLD) continue;
 
             bool highconfidence = (confidence1 > FACE_FEATURE_HIGH_CONFIDENCE_THRESHOLD && confidence2 > FACE_FEATURE_HIGH_CONFIDENCE_THRESHOLD); 
 
-            int width = highconfidence ? 2 : 1;
+            int width = highconfidence ? (bg ? 4 : 2) : (bg? 2 : 1);
 
-            Point2f p2(w*face[to_string(face_idx)][FACE_SEGMENTS[i+1]][0].asFloat(), h*face[to_string(face_idx)][FACE_SEGMENTS[i+1]][1].asFloat());
+            Point2f p2(w*face[to_string(face_idx)][FACE_SEGMENTS[i+1]][0].get<float>(), h*face[to_string(face_idx)][FACE_SEGMENTS[i+1]][1].get<float>());
 
-            cv::line(image, p1, p2, FACE_COLORS[i/2], width, cv::LINE_AA);
+            cv::line(image, p1, p2, bg ? WHITE : FACE_COLORS[i/2], width, cv::LINE_AA);
         }
 
         // pupils
         for(uint i = 68; i < NB_FACE_FEATURES; i++) {
-            float confidence = face[to_string(face_idx)][i][2].asFloat();
+            float confidence = face[to_string(face_idx)][i][2].get<float>();
             if (confidence < PUPILS_CONFIDENCE_THRESHOLD) continue;
 
-            Point2f p(w*face[to_string(face_idx)][i][0].asFloat(), h*face[to_string(face_idx)][i][1].asFloat());
+            Point2f p(w*face[to_string(face_idx)][i][0].get<float>(), h*face[to_string(face_idx)][i][1].get<float>());
             cv::circle(image, p, 3, B, 1, cv::LINE_AA);
         }
     }
@@ -208,7 +210,7 @@ cv::Mat drawFace(cv::Mat image, Json::Value face) {
     return image;
 }
 
-cv::Mat drawHands(cv::Mat image, Json::Value hand) {
+cv::Mat drawHands(cv::Mat image, json hand, bool bg=false) {
 
     auto w = image.size().width;
     auto h = image.size().height;
@@ -217,21 +219,21 @@ cv::Mat drawHands(cv::Mat image, Json::Value hand) {
         for(auto handeness : {"left", "right"}) {
             for(uint i = 0; i < HAND_SEGMENTS.size(); i+=2) {
 
-                float confidence1 = hand[to_string(hand_idx)][handeness][HAND_SEGMENTS[i]][2].asFloat();
+                float confidence1 = hand[to_string(hand_idx)][handeness][HAND_SEGMENTS[i]][2].get<float>();
                 if (confidence1 < HAND_FEATURE_LOW_CONFIDENCE_THRESHOLD) continue;
 
-                Point2f p1(w*hand[to_string(hand_idx)][handeness][HAND_SEGMENTS[i]][0].asFloat(), h*hand[to_string(hand_idx)][handeness][HAND_SEGMENTS[i]][1].asFloat());
+                Point2f p1(w*hand[to_string(hand_idx)][handeness][HAND_SEGMENTS[i]][0].get<float>(), h*hand[to_string(hand_idx)][handeness][HAND_SEGMENTS[i]][1].get<float>());
 
-                float confidence2 = hand[to_string(hand_idx)][handeness][HAND_SEGMENTS[i+1]][2].asFloat();
+                float confidence2 = hand[to_string(hand_idx)][handeness][HAND_SEGMENTS[i+1]][2].get<float>();
                 if (confidence2 < HAND_FEATURE_LOW_CONFIDENCE_THRESHOLD) continue;
 
                 bool highconfidence = (confidence1 > HAND_FEATURE_HIGH_CONFIDENCE_THRESHOLD && confidence2 > HAND_FEATURE_HIGH_CONFIDENCE_THRESHOLD); 
 
-                int width = highconfidence ? 2 : 1;
+                int width = highconfidence ? (bg ? 4 : 2) : (bg? 2 : 1);
 
-                Point2f p2(w*hand[to_string(hand_idx)][handeness][HAND_SEGMENTS[i+1]][0].asFloat(), h*hand[to_string(hand_idx)][handeness][HAND_SEGMENTS[i+1]][1].asFloat());
+                Point2f p2(w*hand[to_string(hand_idx)][handeness][HAND_SEGMENTS[i+1]][0].get<float>(), h*hand[to_string(hand_idx)][handeness][HAND_SEGMENTS[i+1]][1].get<float>());
 
-                cv::line(image, p1, p2, HAND_COLORS[i/2], width, cv::LINE_AA);
+                cv::line(image, p1, p2, bg ? WHITE : HAND_COLORS[i/2], width, cv::LINE_AA);
             }
         }
     }
@@ -240,11 +242,23 @@ cv::Mat drawHands(cv::Mat image, Json::Value hand) {
 }
 
 
-cv::Mat drawPose(cv::Mat image, Json::Value frame, bool skeletons, bool faces, bool hands) {
+cv::Mat drawPose(cv::Mat image, json frame, bool skeletons, bool faces, bool hands) {
 
-    if(skeletons) image = drawSkeleton(image, frame["poses"]);
-    if(hands) image = drawHands(image, frame["hands"]);
-    if(faces) image = drawFace(image, frame["faces"]);
+    Mat bg = image.clone();
+
+    // first, background
+    if(skeletons) bg = drawSkeleton(bg, frame["poses"], true); // only background
+    if(hands) bg = drawHands(bg, frame["hands"], true);
+    if(faces) bg = drawFace(bg, frame["faces"], true);
+
+    cv::addWeighted(image, 0.5, bg, 0.5, 0.0, image);
+
+    // then foreground
+    if(skeletons) image = drawSkeleton(image, frame["poses"], false); // only foreground
+    if(hands) image = drawHands(image, frame["hands"], false);
+    if(faces) image = drawFace(image, frame["faces"], false);
+
+
     return image;
 
 
@@ -270,6 +284,7 @@ int main(int argc, char **argv) {
         ("version,v", "shows version and exits")
         ("topic", po::value<string>(), "topic to process (must be of type CompressedImage)")
         ("path", po::value<string>(), "record path (must contain experiment.yaml and freeplay.bag)")
+        ("video", po::value<string>()->default_value(""), "if set to a path, save result as video (eg '/path/to/video.mp4')")
         ("skeleton", po::value<bool>()->default_value(true), "display skeletons")
         ("face", po::value<bool>()->default_value(true), "display faces")
         ("hand", po::value<bool>()->default_value(true), "display hands")
@@ -302,6 +317,12 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    bool no_draw = !vm["skeleton"].as<bool>() && !vm["face"].as<bool>() && !vm["hand"].as<bool>();
+
+    auto video_path = vm["video"].as<string>();
+    bool save_as_video = !video_path.empty();
+
+
     cout << "Opening " << vm["path"].as<string>() << "/" << BAG_FILE << "..." << endl;
     rosbag::Bag bag(vm["path"].as<string>() + "/" + BAG_FILE, rosbag::bagmode::Read);
 
@@ -314,48 +335,69 @@ int main(int argc, char **argv) {
 
     cout << view.size() << " messages to process" << endl << endl;
 
-    Json::Value root;
+    json root;
 
-    cout << "Opening " << POSES_FILE << "..." << flush;
-    auto start = std::chrono::system_clock::now();
-    std::ifstream file(vm["path"].as<string>() + "/" + POSES_FILE);
-    file >> root;
+    if(!no_draw) {
+        auto start = std::chrono::system_clock::now();
+        cout << "Opening " << POSES_FILE << "..." << flush;
+        std::ifstream file(vm["path"].as<string>() + "/" + POSES_FILE);
+        file >> root;
 
-    auto end = std::chrono::system_clock::now();
-    auto elapsed = end - start;
+        auto end = std::chrono::system_clock::now();
+        auto elapsed = end - start;
 
-    cout << "done (took " << std::chrono::duration_cast<std::chrono::seconds>(elapsed).count() << "s)" << endl;
+        cout << "done (took " << std::chrono::duration_cast<std::chrono::seconds>(elapsed).count() << "s)" << endl << endl;
+    }
 
 
     int idx = 0;
     int last_percent = 0;
 
-    for(rosbag::MessageInstance const m : view)
     {
-        idx++;
+        VideoWriter videowriter;
 
-        auto compressed_rgb = m.instantiate<sensor_msgs::CompressedImage>();
-        if (compressed_rgb != NULL) {
-            auto cvimg = imdecode(compressed_rgb->data,1);
-
-
-            cvimg = drawPose(cvimg, root[topic]["frames"][idx],vm["skeleton"].as<bool>(), vm["face"].as<bool>(), vm["hand"].as<bool>() );
-
-
-            imshow(topic, cvimg);
-            waitKey(30);
+        if (save_as_video) {
+            videowriter.open(video_path, VideoWriter::fourcc('D', 'I', 'V', 'X'), 30.0, Size(960, 540) );
         }
 
-        int percent = idx * 100 / view.size();
-        if (percent != last_percent) {
-            cout << "\x1b[FDone " << percent << "% (" << idx << " images)" << endl;
-            last_percent = percent;
-        }
+        for(rosbag::MessageInstance const m : view)
+        {
+            idx++;
 
-        if(interrupted) {
-            cout << "Interrupted." << endl;
-            break;
+            auto compressed_rgb = m.instantiate<sensor_msgs::CompressedImage>();
+            if (compressed_rgb != NULL) {
+                auto cvimg = imdecode(compressed_rgb->data,1);
+
+
+                if(!no_draw) {
+                    cvimg = drawPose(cvimg, root[topic]["frames"][idx],vm["skeleton"].as<bool>(), vm["face"].as<bool>(), vm["hand"].as<bool>() );
+                }
+
+
+                if(save_as_video) {
+                    videowriter.write(cvimg);
+                }
+                else {
+                    imshow(topic, cvimg);
+                    waitKey(30);
+                }
+            }
+
+            int percent = idx * 100 / view.size();
+            if (percent != last_percent) {
+                cout << "\x1b[FDone " << percent << "% (" << idx << " images)" << endl;
+                last_percent = percent;
+            }
+
+            if(interrupted) {
+                cout << "Interrupted." << endl;
+                break;
+            }
         }
+    }
+
+    if(save_as_video) {
+        cout << "Video " << video_path << " written" << endl;
     }
 
     bag.close();

@@ -312,7 +312,8 @@ int main(int argc, char **argv) {
         ("version,v", "shows version and exits")
         ("topic", po::value<string>(), "topic to process (must be of type CompressedImage)")
         ("path", po::value<string>(), "record path (must contain experiment.yaml and freeplay.bag)")
-        ("video", po::value<string>()->default_value(""), "if set to a path, save result as video (eg '/path/to/video.mp4')")
+        ("video", po::value<string>()->default_value(""), "if set to a path, save result as video (eg '/path/to/video.mkv')")
+        ("camera", po::value<bool>()->default_value(true), "show camera stream (if disabled, draws skeletons on black background)")
         ("skeleton", po::value<bool>()->default_value(true), "display skeletons")
         ("face", po::value<bool>()->default_value(true), "display faces")
         ("hand", po::value<bool>()->default_value(true), "display hands")
@@ -345,23 +346,29 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    bool with_video_bg = vm["camera"].as<bool>();
     bool no_draw = !vm["skeleton"].as<bool>() && !vm["face"].as<bool>() && !vm["hand"].as<bool>();
 
     auto video_path = vm["video"].as<string>();
     bool save_as_video = !video_path.empty();
-
-
-    cout << "Opening " << vm["path"].as<string>() << "/" << BAG_FILE << "..." << endl;
-    rosbag::Bag bag(vm["path"].as<string>() + "/" + BAG_FILE, rosbag::bagmode::Read);
 
     string topic(vm["topic"].as<string>());
 
     std::vector<std::string> topics;
     topics.push_back(topic);
 
-    rosbag::View view(bag, rosbag::TopicQuery(topics));
+    rosbag::Bag bag;
+    rosbag::View view;
 
-    cout << view.size() << " messages to process" << endl << endl;
+    if (with_video_bg) {
+        cout << "Opening " << vm["path"].as<string>() << "/" << BAG_FILE << "..." << endl;
+        bag.open(vm["path"].as<string>() + "/" + BAG_FILE, rosbag::bagmode::Read);
+        view.addQuery(bag, rosbag::TopicQuery(topics));
+        cout << view.size() << " messages to process" << endl << endl;
+    }
+
+
+
 
     json root;
 
@@ -377,6 +384,9 @@ int main(int argc, char **argv) {
         cout << "done (took " << std::chrono::duration_cast<std::chrono::seconds>(elapsed).count() << "s)" << endl << endl;
     }
 
+    int total_nb_frames = root[topic]["frames"].size();
+
+    cout << total_nb_frames << " frames to render" << endl << endl;
 
     int idx = 0;
     int last_percent = 0;
@@ -385,17 +395,51 @@ int main(int argc, char **argv) {
         VideoWriter videowriter;
 
         if (save_as_video) {
-            videowriter.open(video_path, VideoWriter::fourcc('D', 'I', 'V', 'X'), 30.0, Size(960, 540) );
+            videowriter.open(video_path, VideoWriter::fourcc('H', '2', '6', '4'), 30.0, Size(960, 540) );
         }
 
-        for(rosbag::MessageInstance const m : view)
-        {
-            idx++;
 
-            auto compressed_rgb = m.instantiate<sensor_msgs::CompressedImage>();
-            if (compressed_rgb != NULL) {
-                auto cvimg = imdecode(compressed_rgb->data,1);
+        if(with_video_bg) {
+            for(rosbag::MessageInstance const m : view)
+            {
+                idx++;
 
+                auto compressed_rgb = m.instantiate<sensor_msgs::CompressedImage>();
+                if (compressed_rgb != NULL) {
+                    auto cvimg = imdecode(compressed_rgb->data,1);
+
+
+                    if(!no_draw) {
+                        cvimg = drawPose(cvimg, root[topic]["frames"][idx],vm["skeleton"].as<bool>(), vm["face"].as<bool>(), vm["hand"].as<bool>() );
+                    }
+
+
+                    if(save_as_video) {
+                        videowriter.write(cvimg);
+                    }
+                    else {
+                        imshow(topic, cvimg);
+                        waitKey(30);
+                    }
+                }
+
+                int percent = idx * 100 / total_nb_frames;
+                if (percent != last_percent) {
+                    cout << "\x1b[FDone " << percent << "% (" << idx << " images)" << endl;
+                    last_percent = percent;
+                }
+
+                if(interrupted) {
+                    cout << "Interrupted." << endl;
+                    break;
+                }
+            }
+        }
+        else { // NO VIDEO BACKGROUND
+            for(idx = 1; idx <= total_nb_frames; idx++)
+            {
+
+                Mat cvimg = Mat::zeros(540, 960, CV_8UC3);
 
                 if(!no_draw) {
                     cvimg = drawPose(cvimg, root[topic]["frames"][idx],vm["skeleton"].as<bool>(), vm["face"].as<bool>(), vm["hand"].as<bool>() );
@@ -409,17 +453,17 @@ int main(int argc, char **argv) {
                     imshow(topic, cvimg);
                     waitKey(30);
                 }
-            }
 
-            int percent = idx * 100 / view.size();
-            if (percent != last_percent) {
-                cout << "\x1b[FDone " << percent << "% (" << idx << " images)" << endl;
-                last_percent = percent;
-            }
+                int percent = idx * 100 / total_nb_frames;
+                if (percent != last_percent) {
+                    cout << "\x1b[FDone " << percent << "% (" << idx << " images)" << endl;
+                    last_percent = percent;
+                }
 
-            if(interrupted) {
-                cout << "Interrupted." << endl;
-                break;
+                if(interrupted) {
+                    cout << "Interrupted." << endl;
+                    break;
+                }
             }
         }
     }

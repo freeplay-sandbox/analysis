@@ -347,7 +347,13 @@ int main(int argc, char **argv) {
     }
 
     bool with_video_bg = vm["camera"].as<bool>();
-    bool no_draw = !vm["skeleton"].as<bool>() && !vm["face"].as<bool>() && !vm["hand"].as<bool>();
+
+    bool show_skel = vm["skeleton"].as<bool>();
+    bool show_face = vm["face"].as<bool>();
+    bool show_hand = vm["hand"].as<bool>();
+    bool no_draw = !show_skel && !show_face && !show_hand;
+
+    int total_nb_frames = 0;
 
     auto video_path = vm["video"].as<string>();
     bool save_as_video = !video_path.empty();
@@ -364,7 +370,11 @@ int main(int argc, char **argv) {
         cout << "Opening " << vm["path"].as<string>() << "/" << BAG_FILE << "..." << endl;
         bag.open(vm["path"].as<string>() + "/" + BAG_FILE, rosbag::bagmode::Read);
         view.addQuery(bag, rosbag::TopicQuery(topics));
-        cout << view.size() << " messages to process" << endl << endl;
+        total_nb_frames = view.size();
+        if (total_nb_frames == 0) {
+            cerr << "Found no messages for topic " << topic << " in " << BAG_FILE << ". Aborting." << endl;
+            exit(1);
+        }
     }
 
 
@@ -382,9 +392,14 @@ int main(int argc, char **argv) {
         auto elapsed = end - start;
 
         cout << "done (took " << std::chrono::duration_cast<std::chrono::seconds>(elapsed).count() << "s)" << endl << endl;
+
+        total_nb_frames = root[topic]["frames"].size();
+        if (total_nb_frames == 0) {
+            cerr << "Found no frames for topic " << topic << " in " << POSES_FILE << ". Aborting." << endl;
+            exit(1);
+        }
     }
 
-    int total_nb_frames = root[topic]["frames"].size();
 
     cout << total_nb_frames << " frames to render" << endl << endl;
 
@@ -410,7 +425,7 @@ int main(int argc, char **argv) {
 
 
                     if(!no_draw) {
-                        cvimg = drawPose(cvimg, root[topic]["frames"][idx],vm["skeleton"].as<bool>(), vm["face"].as<bool>(), vm["hand"].as<bool>() );
+                        cvimg = drawPose(cvimg, root[topic]["frames"][idx], show_skel, show_face, show_hand);
                     }
 
 
@@ -419,7 +434,11 @@ int main(int argc, char **argv) {
                     }
                     else {
                         imshow(topic, cvimg);
-                        waitKey(30);
+                        auto k = waitKey(30);
+                        if (k == 27) interrupted = true;
+                        if (!no_draw && k == 115) show_skel = !show_skel; // s
+                        if (!no_draw && k == 102) show_face = !show_face; // f
+                        if (!no_draw && k == 104) show_hand = !show_hand; // h
                     }
                 }
 
@@ -442,7 +461,7 @@ int main(int argc, char **argv) {
                 Mat cvimg = Mat::zeros(540, 960, CV_8UC3);
 
                 if(!no_draw) {
-                    cvimg = drawPose(cvimg, root[topic]["frames"][idx],vm["skeleton"].as<bool>(), vm["face"].as<bool>(), vm["hand"].as<bool>() );
+                    cvimg = drawPose(cvimg, root[topic]["frames"][idx], show_skel, show_face, show_hand);
                 }
 
 
@@ -451,7 +470,11 @@ int main(int argc, char **argv) {
                 }
                 else {
                     imshow(topic, cvimg);
-                    waitKey(30);
+                    auto k = waitKey(30);
+                    if (k == 27) interrupted = true;
+                    if (!no_draw && k == 115) show_skel = !show_skel; // s
+                    if (!no_draw && k == 102) show_face = !show_face; // f
+                    if (!no_draw && k == 104) show_hand = !show_hand; // h
                 }
 
                 int percent = idx * 100 / total_nb_frames;

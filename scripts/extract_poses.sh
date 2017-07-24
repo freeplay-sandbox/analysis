@@ -1,7 +1,7 @@
 #! /bin/bash
 
 EXEC=$HOME/src/freeplay-sandbox-analysis/build/devel/lib/freeplay_sandbox_analysis/faces_analysis
-DATASET_ROOT=/media/$USER/DoRoThy1/freeplay_sandox/data
+DATASET_ROOT=/media/$USER/DoRoThy1/freeplay_sandbox/data
 
 OPENPOSE_MODELS=/opt/openpose/models
 

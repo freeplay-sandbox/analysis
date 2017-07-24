@@ -74,8 +74,11 @@ add_executable(pose_analysis src/pose_analysis.cpp)
 target_link_libraries(pose_analysis ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})
 
 
-add_executable(replay_with_poses src/replay_with_poses.cpp src/jsoncpp.cpp)
+add_executable(replay_with_poses src/replay_with_poses.cpp)
 target_link_libraries(replay_with_poses ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})
+
+add_executable(prepare_visual_tracking_dataset src/prepare_visual_tracking_dataset.cpp)
+target_link_libraries(prepare_visual_tracking_dataset ${catkin_LIBRARIES})
 
 #install(TARGETS mutual_gaze_segmentation faces_analysis
 install(TARGETS replay_with_poses

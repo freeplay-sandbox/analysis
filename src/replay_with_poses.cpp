@@ -92,7 +92,7 @@ const Scalar WHITE(255,255,255);
 
 //const string BAG_FILE ("rectified_streams.bag");
 const string BAG_FILE ("freeplay.bag");
-const string POSES_FILE ("poses.json");
+const string POSES_FILE ("freeplay.poses.json");
 
 const float SKEL_FEATURE_LOW_CONFIDENCE_THRESHOLD = 0.05;
 const float SKEL_FEATURE_HIGH_CONFIDENCE_THRESHOLD = 0.2;
@@ -363,23 +363,6 @@ int main(int argc, char **argv) {
     std::vector<std::string> topics;
     topics.push_back(topic);
 
-    rosbag::Bag bag;
-    rosbag::View view;
-
-    if (with_video_bg) {
-        cout << "Opening " << vm["path"].as<string>() << "/" << BAG_FILE << "..." << endl;
-        bag.open(vm["path"].as<string>() + "/" + BAG_FILE, rosbag::bagmode::Read);
-        view.addQuery(bag, rosbag::TopicQuery(topics));
-        total_nb_frames = view.size();
-        if (total_nb_frames == 0) {
-            cerr << "Found no messages for topic " << topic << " in " << BAG_FILE << ". Aborting." << endl;
-            exit(1);
-        }
-    }
-
-
-
-
     json root;
 
     if(!no_draw) {
@@ -399,6 +382,24 @@ int main(int argc, char **argv) {
             exit(1);
         }
     }
+
+    rosbag::Bag bag;
+    rosbag::View view;
+
+    if (with_video_bg) {
+        cout << "Opening " << vm["path"].as<string>() << "/" << BAG_FILE << "..." << endl;
+        bag.open(vm["path"].as<string>() + "/" + BAG_FILE, rosbag::bagmode::Read);
+        view.addQuery(bag, rosbag::TopicQuery(topics));
+        total_nb_frames = view.size();
+        if (total_nb_frames == 0) {
+            cerr << "Found no messages for topic " << topic << " in " << BAG_FILE << ". Aborting." << endl;
+            exit(1);
+        }
+    }
+
+
+
+
 
 
     cout << total_nb_frames << " frames to render" << endl << endl;

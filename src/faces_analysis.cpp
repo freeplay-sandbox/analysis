@@ -51,24 +51,24 @@ const string POSES_SUFFIX (".poses.json");
         "poses": {
             "1": [ # pose index
                 # x,y in image coordinate, c is confidence in [0.0,1.0]
-                [x, y, c], # Nose
-                [x, y, c], # Neck
-                [x, y, c], # RShoulder
-                [x, y, c], # RElbow
-                [x, y, c], # RWrist
-                [x, y, c], # LShoulder
-                [x, y, c], # LElbow
-                [x, y, c], # LWrist
-                [x, y, c], # RHip
-                [x, y, c], # RKnee
-                [x, y, c], # RAnkle
-                [x, y, c], # LHip
-                [x, y, c], # LKnee
-                [x, y, c], # LAnkle
-                [x, y, c], # REye
-                [x, y, c], # LEye
-                [x, y, c], # REar
-                [x, y, c] # LEar
+                [x, y, c], # 0- Nose
+                [x, y, c], # 1- Neck
+                [x, y, c], # 2- RShoulder
+                [x, y, c], # 3- RElbow
+                [x, y, c], # 4- RWrist
+                [x, y, c], # 5- LShoulder
+                [x, y, c], # 6- LElbow
+                [x, y, c], # 7- LWrist
+                [x, y, c], # 8- RHip
+                [x, y, c], # 9- RKnee
+                [x, y, c], # 10- RAnkle
+                [x, y, c], # 11- LHip
+                [x, y, c], # 12- LKnee
+                [x, y, c], # 13- LAnkle
+                [x, y, c], # 14- REye
+                [x, y, c], # 15- LEye
+                [x, y, c], # 16- REar
+                [x, y, c]  # 17- LEar
             ],
             "2": [ # if present, second skeleton
               ...

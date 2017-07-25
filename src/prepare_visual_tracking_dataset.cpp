@@ -23,6 +23,8 @@
 
 #include "json.hpp"
 
+#include "gaze_features.hpp"
+
 #define STR_EXPAND(tok) #tok
 #define STR(tok) STR_EXPAND(tok)
 
@@ -34,15 +36,6 @@ namespace po = boost::program_options;
 //const string BAG_FILE ("rectified_streams.bag");
 const string BAG_FILE ("visual_tracking.bag");
 const string POSES_FILE ("visual_tracking.poses.json");
-
-const vector<size_t> FACIAL_POI    {36, 37, 38, 39, 40, 41, // right eye
-                                    17, 18, 19, 20, 21, // right eyebrow
-                                    42, 43, 44, 45, 46, 47, // left eye
-                                    22, 23, 24, 25, 26, // right eyebrow
-                                    68, 69 // pupils
-                                    };
-
-const vector<size_t> SKELETON_POI {0,1, 2, 5, 14,15,16,17}; // nose, neck, shoulders, left/right eyes & ears
 
 typedef pair<ros::Time, pair<double, double>> TargetPose;
 typedef map<ros::Time, pair<double, double>> TargetPoses;
@@ -81,29 +74,6 @@ pair<double, double> interpolate(const TargetPoses::value_type& a, const TargetP
     return {x0 + alpha * dx, y0 + alpha * dy};
 }
 
-vector<double> getfeatures(json frame, bool mirror) {
-
-    vector<double> f;
-
-    for (size_t i : FACIAL_POI) {
-        auto x = max(0., min(1., frame["faces"]["1"][i][0].get<double>()));
-        if(mirror) x = (1 - x);
-        f.push_back(x);
-        auto y = max(0., min(1., frame["faces"]["1"][i][1].get<double>())); // Y coordinates of facial features
-        f.push_back(y);
-    }
-
-    for (size_t i : SKELETON_POI) {
-        auto x = max(0., min(1., frame["poses"]["1"][i][0].get<double>()));
-        if(mirror) x = (1 - x);
-        f.push_back(x);
-        auto y = max(0., min(1., frame["poses"]["1"][i][1].get<double>())); // Y coordinates of facial features
-        f.push_back(y);
-    }
-
-    return f;
-
-}
 
 int main(int argc, char **argv) {
 

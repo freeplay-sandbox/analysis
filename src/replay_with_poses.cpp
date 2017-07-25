@@ -27,6 +27,7 @@
 #include <message_filters/time_synchronizer.h>
 
 #include "json.hpp"
+#include "gaze_features.hpp"
 
 #define STR_EXPAND(tok) #tok
 #define STR(tok) STR_EXPAND(tok)
@@ -98,62 +99,64 @@ const float SKEL_FEATURE_LOW_CONFIDENCE_THRESHOLD = 0.05;
 const float SKEL_FEATURE_HIGH_CONFIDENCE_THRESHOLD = 0.2;
 const uint NB_SKEL_FEATURES = 18;
 const vector<uint>  SKEL_SEGMENTS {   0,1, // neck
-                                      1,2,   2,3, 3,4, // right arm
-                                      1,5,   5,6, 6,7, // left arm
-                                      1,8,   8,9, 9,10, // right leg
-                                     1,11, 11,12, 12,13, // left leg
-                                     0,14, 14,16, // right eye/ear
-                                     0,15, 15,17 // left eye/ear
-                                    };
+    1,2,   2,3, 3,4, // right arm
+    1,5,   5,6, 6,7, // left arm
+    1,8,   8,9, 9,10, // right leg
+    1,11, 11,12, 12,13, // left leg
+    0,14, 14,16, // right eye/ear
+    0,15, 15,17 // left eye/ear
+};
 const vector<Scalar> SKEL_COLORS {      C1,
-                                        H3,   H3,    H3,
-                                        F3,   F3,    F3,
-                                        D2,   D2,    D2,
-                                        E,     E,     E,
-                                        C1,   C1,
-                                        C1,   C1
-                                 };
+    H3,   H3,    H3,
+    F3,   F3,    F3,
+    D2,   D2,    D2,
+    E,     E,     E,
+    C1,   C1,
+    C1,   C1
+};
 
 const float FACE_FEATURE_HIGH_CONFIDENCE_THRESHOLD = 0.4;
 const float FACE_FEATURE_LOW_CONFIDENCE_THRESHOLD = 0.2;
 const float PUPILS_CONFIDENCE_THRESHOLD = 0.8;
 const uint NB_FACE_FEATURES = 70;
-const vector<uint> FACE_SEGMENTS {    0,1,   1,2,   2,3,   3,4,   4,5,   5,6,   6,7,   7,8,   8,9,  9,10, 10,11, 11,12, 12,13, 13,14, 14,15, 15,16, // face contour
-                                    17,18, 18,19, 19,20, 20,21, // right eyebrow
-                                    22,23, 23,24, 24,25, 25,26, // left eyebrow
-                                    27,28, 28,29, 29,30, // nose line
-                                    31,32, 32,33, 33,34, 34,35, // nosetrils
-                                    36,37, 37,38, 38,39, 39,40, 40,41, 41,36, // right eye
-                                    42,43, 43,44, 44,45, 45,46, 46,47, 47,42, // left eye
-                                    48,49, 49,50, 50,51, 51,52, 52,53, 53,54, 54,55, 55,56, 56,57, 57,58, 58,59, 59,48, // outer lips
-                                    60,61, 61,62, 62,63, 63,64, 64,65, 65,66, 66,67, 67,60 // inner lips
-                                   };
-const vector<Scalar> FACE_COLORS {      D,     D,     D,     D,     D,     D,     D,     D,     D,     D,     D,     D,     D,     D,      D,    D,
-                                       D4,    D4,    D4,    D4,
-                                       D4,    D4,    D4,    D4,
-                                        D,     D,     D,
-                                        D,     D,     D,     D,
-                                       D4,    D4,    D4,    D4,    D4,    D4,
-                                       D4,    D4,    D4,    D4,    D4,    D4,
-                                       D3,    D3,    D3,    D3,    D3,    D3,    D3,    D3,    D3,    D3,    D3,    D3,
-                                       D3,    D3,    D3,    D3,    D3,    D3,    D3,    D3
-                                };
+const vector<uint> FACE_SEGMENTS {
+    0,1,   1,2,   2,3,   3,4,   4,5,   5,6,   6,7,   7,8,   8,9,  9,10, 10,11, 11,12, 12,13, 13,14, 14,15, 15,16, // face contour
+    17,18, 18,19, 19,20, 20,21, // right eyebrow
+    22,23, 23,24, 24,25, 25,26, // left eyebrow
+    27,28, 28,29, 29,30, // nose line
+    31,32, 32,33, 33,34, 34,35, // nosetrils
+    36,37, 37,38, 38,39, 39,40, 40,41, 41,36, // right eye
+    42,43, 43,44, 44,45, 45,46, 46,47, 47,42, // left eye
+    48,49, 49,50, 50,51, 51,52, 52,53, 53,54, 54,55, 55,56, 56,57, 57,58, 58,59, 59,48, // outer lips
+    60,61, 61,62, 62,63, 63,64, 64,65, 65,66, 66,67, 67,60 // inner lips
+};
+const vector<Scalar> FACE_COLORS {
+    D,     D,     D,     D,     D,     D,     D,     D,     D,     D,     D,     D,     D,     D,      D,    D,
+    D4,    D4,    D4,    D4,
+    D4,    D4,    D4,    D4,
+    D,     D,     D,
+    D,     D,     D,     D,
+    D4,    D4,    D4,    D4,    D4,    D4,
+    D4,    D4,    D4,    D4,    D4,    D4,
+    D3,    D3,    D3,    D3,    D3,    D3,    D3,    D3,    D3,    D3,    D3,    D3,
+    D3,    D3,    D3,    D3,    D3,    D3,    D3,    D3
+};
 
 const float HAND_FEATURE_HIGH_CONFIDENCE_THRESHOLD = 0.4;
 const float HAND_FEATURE_LOW_CONFIDENCE_THRESHOLD = 0.2;
 const uint NB_HAND_FEATURES = 21;
 const vector<uint> HAND_SEGMENTS {   0,1,   1,2,   2,3,  3,4,  // thumb
-                                     0,5,   5,6,   6,7,  7,8, // index
-                                     0,9,  9,10, 10,11, 11,12, // middle finger
-                                    0,13, 13,14, 14,15, 15,16, // ring finger
-                                    0,17, 17,18, 18,19, 19,20 // little finger
-                                   };
+    0,5,   5,6,   6,7,  7,8, // index
+    0,9,  9,10, 10,11, 11,12, // middle finger
+    0,13, 13,14, 14,15, 15,16, // ring finger
+    0,17, 17,18, 18,19, 19,20 // little finger
+};
 const vector<Scalar> HAND_COLORS {      G1,   G1,    G1,    G1,
-                                        G2,   G2,    G2,    G2,
-                                        G,   G,    G,    G,
-                                        G3,   G3,    G3,    G3,
-                                        G4,   G4,    G4,    G4
-                                };
+    G2,   G2,    G2,    G2,
+    G,   G,    G,    G,
+    G3,   G3,    G3,    G3,
+    G4,   G4,    G4,    G4
+};
 
 bool interrupted = false;
 
@@ -162,7 +165,7 @@ void my_handler(int s){
     interrupted = true; 
 }
 
-cv::Mat drawSkeleton(cv::Mat image, json skel, bool bg=false) {
+cv::Mat drawSkeleton(cv::Mat image, const json& skel, bool bg=false) {
 
     auto w = image.size().width;
     auto h = image.size().height;
@@ -200,7 +203,7 @@ cv::Mat drawSkeleton(cv::Mat image, json skel, bool bg=false) {
     return image;
 }
 
-cv::Mat drawFace(cv::Mat image, json face, bool bg=false) {
+cv::Mat drawFace(cv::Mat image, const json& face, bool bg=false) {
 
     auto w = image.size().width;
     auto h = image.size().height;
@@ -238,7 +241,7 @@ cv::Mat drawFace(cv::Mat image, json face, bool bg=false) {
     return image;
 }
 
-cv::Mat drawHands(cv::Mat image, json hand, bool bg=false) {
+cv::Mat drawHands(cv::Mat image, const json& hand, bool bg=false) {
 
     auto w = image.size().width;
     auto h = image.size().height;
@@ -270,7 +273,7 @@ cv::Mat drawHands(cv::Mat image, json hand, bool bg=false) {
 }
 
 
-cv::Mat drawPose(cv::Mat image, json frame, bool skeletons, bool faces, bool hands) {
+cv::Mat drawPose(cv::Mat image, const json& frame, bool skeletons, bool faces, bool hands) {
 
     Mat bg = image.clone();
 
@@ -292,6 +295,19 @@ cv::Mat drawPose(cv::Mat image, json frame, bool skeletons, bool faces, bool han
 
 }
 
+void printGazeFeatures(const json& frame, bool mirror, const string& topic) {
+
+    auto features = getfeatures(frame, mirror);
+
+    json res;
+    res["topic"] = topic;
+    res["mirror"] = mirror;
+    res["features"] = features;
+
+    cout << res << endl;
+
+}
+
 int main(int argc, char **argv) {
 
 
@@ -310,13 +326,14 @@ int main(int argc, char **argv) {
     desc.add_options()
         ("help,h", "produces help message")
         ("version,v", "shows version and exits")
-        ("topic", po::value<string>(), "topic to process (must be of type CompressedImage)")
+        ("topics", po::value<vector<string>>()->multitoken(), "topic(s) to process (must be of type CompressedImage)")
         ("path", po::value<string>(), "record path (must contain experiment.yaml and freeplay.bag)")
         ("video", po::value<string>()->default_value(""), "if set to a path, save result as video (eg '/path/to/video.mkv')")
         ("camera", po::value<bool>()->default_value(true), "show camera stream (if disabled, draws skeletons on black background)")
         ("skeleton", po::value<bool>()->default_value(true), "display skeletons")
         ("face", po::value<bool>()->default_value(true), "display faces")
         ("hand", po::value<bool>()->default_value(true), "display hands")
+        ("continuousgaze", po::value<bool>()->default_value(false), "continuously print the gaze features to stdout for live plotting")
         ;
 
     po::variables_map vm;
@@ -336,8 +353,8 @@ int main(int argc, char **argv) {
         return 0;
     }
 
-    if (vm.count("topic") == 0) {
-        cout << "You must specify a topic to process" << endl;
+    if (vm.count("topics") == 0) {
+        cerr << "You must specify topic(s) to process with --topics" << endl;
         return 1;
     }
 
@@ -346,6 +363,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    bool continous_gaze = vm["continuousgaze"].as<bool>();
     bool with_video_bg = vm["camera"].as<bool>();
 
     bool show_skel = vm["skeleton"].as<bool>();
@@ -358,28 +376,29 @@ int main(int argc, char **argv) {
     auto video_path = vm["video"].as<string>();
     bool save_as_video = !video_path.empty();
 
-    string topic(vm["topic"].as<string>());
-
-    std::vector<std::string> topics;
-    topics.push_back(topic);
+    std::vector<std::string> topics(vm["topics"].as<vector<string>>());
 
     json root;
 
     if(!no_draw) {
         auto start = std::chrono::system_clock::now();
-        cout << "Opening " << POSES_FILE << "..." << flush;
+        cerr << "Opening " << POSES_FILE << "..." << flush;
         std::ifstream file(vm["path"].as<string>() + "/" + POSES_FILE);
         file >> root;
 
         auto end = std::chrono::system_clock::now();
         auto elapsed = end - start;
 
-        cout << "done (took " << std::chrono::duration_cast<std::chrono::seconds>(elapsed).count() << "s)" << endl << endl;
+        cerr << "done (took " << std::chrono::duration_cast<std::chrono::seconds>(elapsed).count() << "s)" << endl << endl;
 
-        total_nb_frames = root[topic]["frames"].size();
-        if (total_nb_frames == 0) {
-            cerr << "Found no frames for topic " << topic << " in " << POSES_FILE << ". Aborting." << endl;
-            exit(1);
+        for (const auto& topic : topics) {
+            auto nb_frames = root[topic]["frames"].size();
+            if (nb_frames == 0) {
+                cerr << "Found no frames for topic " << topic << " in " << POSES_FILE << ". Aborting." << endl;
+                exit(1);
+            }
+            cerr << "Found " << nb_frames << " poses to render for topic " << topic << endl << endl;
+            total_nb_frames += nb_frames;
         }
     }
 
@@ -387,22 +406,24 @@ int main(int argc, char **argv) {
     rosbag::View view;
 
     if (with_video_bg) {
-        cout << "Opening " << vm["path"].as<string>() << "/" << BAG_FILE << "..." << endl;
+        cerr << "Opening " << vm["path"].as<string>() << "/" << BAG_FILE << "..." << endl;
         bag.open(vm["path"].as<string>() + "/" + BAG_FILE, rosbag::bagmode::Read);
         view.addQuery(bag, rosbag::TopicQuery(topics));
         total_nb_frames = view.size();
         if (total_nb_frames == 0) {
-            cerr << "Found no messages for topic " << topic << " in " << BAG_FILE << ". Aborting." << endl;
+            cerr << "Found no image messages for given topic in " << BAG_FILE << ". Aborting." << endl;
             exit(1);
         }
     }
 
+    map<string, size_t> topicsIndices;
+
+    // feature mirroring, for gaze estimation
+    bool mirror = false;
+
+    Size windowSize(960 * topics.size(), 540);
 
 
-
-
-
-    cout << total_nb_frames << " frames to render" << endl << endl;
 
     int idx = 0;
     int last_percent = 0;
@@ -411,32 +432,64 @@ int main(int argc, char **argv) {
         VideoWriter videowriter;
 
         if (save_as_video) {
-            videowriter.open(video_path, VideoWriter::fourcc('H', '2', '6', '4'), 30.0, Size(960, 540) );
+            videowriter.open(video_path, VideoWriter::fourcc('H', '2', '6', '4'), 30.0, windowSize );
         }
 
 
         if(with_video_bg) {
+            Mat image(windowSize, CV_8UC3, Scalar(0,0,0));
+
             for(rosbag::MessageInstance const m : view)
             {
                 idx++;
 
-                auto compressed_rgb = m.instantiate<sensor_msgs::CompressedImage>();
-                if (compressed_rgb != NULL) {
-                    auto cvimg = imdecode(compressed_rgb->data,1);
 
+                for (size_t t_idx = 0; t_idx < topics.size(); t_idx++) {
+                    auto topic = topics[t_idx];
 
-                    if(!no_draw) {
-                        cvimg = drawPose(cvimg, root[topic]["frames"][idx], show_skel, show_face, show_hand);
+                    if(topic.find("yellow") != string::npos) {
+                        mirror = true;
+                    }
+                    if(topic.find("purple") != string::npos) {
+                        mirror = false;
                     }
 
+                    if (m.getTopic() == topic || ("/" + m.getTopic() == topic)) {
 
+
+                        auto compressed_rgb = m.instantiate<sensor_msgs::CompressedImage>();
+                        if (compressed_rgb != NULL) {
+                            topicsIndices[topic] += 1;
+                            auto camimage = imdecode(compressed_rgb->data,1);
+                            Rect roi( Point( 960 * t_idx, 0 ), camimage.size() );
+
+
+                            if(!no_draw) {
+                                camimage = drawPose(camimage, root[topic]["frames"][topicsIndices[topic]], show_skel, show_face, show_hand);
+                            }
+
+                            if(!no_draw && continous_gaze) printGazeFeatures(root[topic]["frames"][topicsIndices[topic]], mirror, topic);
+
+                            camimage.copyTo( image( roi ) );
+                        }
+                    }
+                }
+
+                if (idx % topics.size() == 0) {
                     if(save_as_video) {
-                        videowriter.write(cvimg);
+                        videowriter.write(image);
                     }
-                    else {
-                        imshow(topic, cvimg);
+                    else
+                    {
+                        imshow("Pose replay", image);
                         auto k = waitKey(30);
                         if (k == 27) interrupted = true;
+                        if (k == 32) { // space
+                            // pause
+                            while (true) {
+                                if (waitKey(30) == 32) break;
+                            }
+                        }
                         if (!no_draw && k == 115) show_skel = !show_skel; // s
                         if (!no_draw && k == 102) show_face = !show_face; // f
                         if (!no_draw && k == 104) show_hand = !show_hand; // h
@@ -445,12 +498,12 @@ int main(int argc, char **argv) {
 
                 int percent = idx * 100 / total_nb_frames;
                 if (percent != last_percent) {
-                    cout << "\x1b[FDone " << percent << "% (" << idx << " images)" << endl;
+                    cerr << "\x1b[FDone " << percent << "% (" << idx << " images)" << endl;
                     last_percent = percent;
                 }
 
                 if(interrupted) {
-                    cout << "Interrupted." << endl;
+                    cerr << "Interrupted." << endl;
                     break;
                 }
             }
@@ -459,20 +512,44 @@ int main(int argc, char **argv) {
             for(idx = 1; idx <= total_nb_frames; idx++)
             {
 
-                Mat cvimg = Mat::zeros(540, 960, CV_8UC3);
+                Mat image(windowSize, CV_8UC3, Scalar(0,0,0));
+                for (size_t t_idx = 0; t_idx < topics.size(); t_idx++) {
+                    auto topic = topics[t_idx];
 
-                if(!no_draw) {
-                    cvimg = drawPose(cvimg, root[topic]["frames"][idx], show_skel, show_face, show_hand);
+                    if(topic.find("yellow") != string::npos) {
+                        mirror = true;
+                    }
+                    if(topic.find("purple") != string::npos) {
+                        mirror = false;
+                    }
+
+
+                    Mat camimage(960, 540, CV_8UC3, Scalar(0,0,0));
+                    Rect roi( Point( 960 * t_idx, 0 ), camimage.size() );
+
+                    if(!no_draw) {
+                        camimage = drawPose(camimage, root[topic]["frames"][idx], show_skel, show_face, show_hand);
+                    }
+
+                    if(!no_draw && continous_gaze) printGazeFeatures(root[topic]["frames"][idx], mirror, topic);
+
+                    camimage.copyTo( image( roi ) );
                 }
-
 
                 if(save_as_video) {
-                    videowriter.write(cvimg);
+                    videowriter.write(image);
                 }
                 else {
-                    imshow(topic, cvimg);
+                    imshow("Pose replay", image);
                     auto k = waitKey(30);
                     if (k == 27) interrupted = true;
+                    if (k == 32) { // space
+                        // pause
+                        while (true) {
+                            if (waitKey(30) == 32) break;
+                        }
+                    }
+
                     if (!no_draw && k == 115) show_skel = !show_skel; // s
                     if (!no_draw && k == 102) show_face = !show_face; // f
                     if (!no_draw && k == 104) show_hand = !show_hand; // h
@@ -480,12 +557,12 @@ int main(int argc, char **argv) {
 
                 int percent = idx * 100 / total_nb_frames;
                 if (percent != last_percent) {
-                    cout << "\x1b[FDone " << percent << "% (" << idx << " images)" << endl;
+                    cerr << "\x1b[FDone " << percent << "% (" << idx << " images)" << endl;
                     last_percent = percent;
                 }
 
                 if(interrupted) {
-                    cout << "Interrupted." << endl;
+                    cerr << "Interrupted." << endl;
                     break;
                 }
             }
@@ -493,7 +570,7 @@ int main(int argc, char **argv) {
     }
 
     if(save_as_video) {
-        cout << "Video " << video_path << " written" << endl;
+        cerr << "Video " << video_path << " written" << endl;
     }
 
     bag.close();

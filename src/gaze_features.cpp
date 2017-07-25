@@ -1,3 +1,7 @@
+#ifdef WITH_CAFFE
+#include <caffe/caffe.hpp>
+#endif
+
 #include "gaze_features.hpp"
 
 using namespace std;
@@ -27,4 +31,22 @@ vector<double> getfeatures(const json& frame, bool mirror) {
 
 }
 
+#ifdef WITH_CAFFE
+pair<double, double> get_gaze_estimate(const nlohmann::json& frame, bool mirror) {
 
+    auto features = getfeatures(frame, mirror);
+
+    caffe::Net net("share/models/deploy.prototxt", caffe::TEST);
+    net.CopyTrainedLayersFrom("share/models/gaze.caffemodel")
+
+    auto input_layer = net.input_blobs()[0];
+    for (auto f : features) {
+
+    }
+
+    auto output_layer = net.output_blobs()[0];
+
+    net.Forward();
+
+}
+#endif

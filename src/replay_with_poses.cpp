@@ -44,19 +44,19 @@ const Scalar A1(166,111,166);
 const Scalar A2(138, 69,138);
 const Scalar A3( 83, 14, 83);
 const Scalar A4( 55,  0, 55);
-                           
+
 const Scalar B ( 57, 80,170); // saumon
 const Scalar B1(170,188,255);
 const Scalar B2(106,128,212);
 const Scalar B3( 21, 43,128);
 const Scalar B4(  0, 18, 85);
-                           
+
 const Scalar C ( 76,121, 40); // teal
 const Scalar C1(148,182,121);
 const Scalar C2(109,151, 76);
 const Scalar C3( 48, 91, 15);
 const Scalar C4( 26, 61,  0);
-                           
+
 const Scalar D ( 55,164,145); // lime
 const Scalar D1(164,246,232);
 const Scalar D2(103,205,188);
@@ -334,6 +334,8 @@ int main(int argc, char **argv) {
         ("face", po::value<bool>()->default_value(true), "display faces")
         ("hand", po::value<bool>()->default_value(true), "display hands")
         ("continuousgaze", po::value<bool>()->default_value(false), "continuously print the gaze features to stdout for live plotting")
+        ("gaze", po::value<bool>()->default_value(false), "show gaze estimate")
+        ("gaze_model", po::value<string>()->default_value("gaze.caffemodel"), "the trained Caffe model for gaze estimation")
         ;
 
     po::variables_map vm;

@@ -11,6 +11,9 @@ add_definitions(-std=c++11 -DFREEPLAY_ANALYSIS_VERSION=${VERSION})
 find_package(Eigen3 REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIRS})
 
+find_package(Boost REQUIRED COMPONENTS program_options)
+
+
 find_package(Caffe)
 
 if(${Caffe_FOUND})
@@ -72,6 +75,9 @@ endif()
 
 add_executable(pose_analysis src/pose_analysis.cpp)
 target_link_libraries(pose_analysis ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})
+
+add_executable(face_detection src/face_detection.cpp)
+target_link_libraries(face_detection ${Boost_LIBRARIES})
 
 
 add_executable(replay_with_poses src/replay_with_poses.cpp src/gaze_features.cpp)

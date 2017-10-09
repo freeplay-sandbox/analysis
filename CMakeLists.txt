@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(freeplay_sandbox_analysis)
 
+
+
 set(CPACK_PACKAGE_VERSION_MAJOR "0")
 set(CPACK_PACKAGE_VERSION_MINOR "1")
 set(CPACK_PACKAGE_VERSION_PATCH "0")
@@ -36,9 +38,10 @@ endif()
 find_package(catkin REQUIRED COMPONENTS 
     roscpp
     rosbag
-    tf
+    tf2
     std_msgs
     visualization_msgs
+    message_filters
     sensor_msgs
     cv_bridge
     image_geometry

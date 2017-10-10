@@ -45,7 +45,8 @@ do
     
         echo "Checking poses for experiment $dir (experiment $((i+1))/${#paths[@]})..."
         $EXEC --path $dir
-    
+    else
+        echo "!! Missing freeplay.poses.json in $dir!"
     fi
 done
 

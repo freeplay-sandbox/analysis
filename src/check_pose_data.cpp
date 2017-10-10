@@ -96,8 +96,7 @@ int main(int argc, char **argv) {
     for (json::iterator topic = root.begin(); topic != root.end(); ++topic) {
         auto nb_frames = topic.value()["frames"].size();
         if (nb_frames == 0) {
-            cerr << "Found no frames for topic " << topic.key() << " in " << POSES_FILE << "." << endl;
-            exit(1);
+            cerr << "!! Found no frames for topic " << topic.key() << " in " << POSES_FILE << "." << endl;
         }
         topics[topic.key()] = nb_frames;
         total_nb_frames += nb_frames;

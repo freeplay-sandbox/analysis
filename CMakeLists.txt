@@ -1,8 +1,6 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(freeplay_sandbox_analysis)
 
-
-
 set(CPACK_PACKAGE_VERSION_MAJOR "0")
 set(CPACK_PACKAGE_VERSION_MINOR "1")
 set(CPACK_PACKAGE_VERSION_PATCH "0")
@@ -16,6 +14,7 @@ include_directories(${EIGEN3_INCLUDE_DIRS})
 find_package(Boost REQUIRED COMPONENTS program_options)
 
 find_package(yaml-cpp REQUIRED)
+include_directories(${YAML_CPP_INCLUDE_DIRS})
 
 find_package(Caffe)
 
@@ -47,6 +46,7 @@ find_package(catkin REQUIRED COMPONENTS
     sensor_msgs
     cv_bridge
     image_geometry
+    audio_common_msgs
     )
 
 include_directories(${catkin_INCLUDE_DIRS})
@@ -101,6 +101,10 @@ install(TARGETS replay_with_poses
     LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
+
+add_executable(vad src/vad.cpp)
+target_link_libraries(vad ${catkin_LIBRARIES} ${YAML_CPP_LIBRARIES})
+
 
 catkin_install_python(PROGRAMS
     nodes/analysis

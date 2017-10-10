@@ -1,7 +1,33 @@
 #! /bin/bash
 
+me=`basename "$0"`
+
+display_usage() { 
+    echo -e "Usage: $me [-h] <root of dataset>\n"
+    echo -e "Count on how many frames the faces are visible\n"
+    echo "  -h: display this help" 
+} 
+
+
+# A POSIX variable
+OPTIND=1         # Reset in case getopts has been used previously in the shell.
+
+while getopts "h?" opt; do
+    case "$opt" in
+    h|\?)
+        display_usage
+        exit 0
+        ;;
+    esac
+done
+
+shift $((OPTIND-1))
+
+[ "$1" = "--" ] && shift
+
+DATASET_ROOT=$1
+
 EXEC=$HOME/src/freeplay-sandbox-analysis/build/devel/lib/freeplay_sandbox_analysis/faces_detection
-DATASET_ROOT=/media/$USER/DoRoThy1/freeplay_sandbox/data
 
 orig_path=$(pwd)
 

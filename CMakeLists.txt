@@ -15,11 +15,15 @@ include_directories(${EIGEN3_INCLUDE_DIRS})
 
 find_package(Boost REQUIRED COMPONENTS program_options)
 
+find_package(yaml-cpp REQUIRED)
 
 find_package(Caffe)
 
+
 if(${Caffe_FOUND})
-    set(WITH_OPENPOSE TRUE)
+    option(WITH_OPENPOSE "Build with OpenPose support" OFF)
+else()
+    message(WARNING "Caffe/OpenPose not found -- pose detection will not be available")
 endif()
 
 
@@ -31,8 +35,6 @@ if(${WITH_OPENPOSE})
     pkg_search_module(OPENPOSE REQUIRED openpose)
     include_directories(${OPENPOSE_INCLUDE_DIRS})
     link_directories(${OPENPOSE_LIBRARY_DIRS})
-else()
-    message(WARNING "Caffe/OpenPose not found -- pose detection will not be available")
 endif()
 
 find_package(catkin REQUIRED COMPONENTS 
@@ -81,6 +83,10 @@ target_link_libraries(pose_analysis ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})
 
 add_executable(face_detection src/face_detection.cpp)
 target_link_libraries(face_detection ${Boost_LIBRARIES})
+
+
+add_executable(check_pose_data src/check_pose_data.cpp)
+target_link_libraries(check_pose_data ${Boost_LIBRARIES} ${YAML_CPP_LIBRARIES})
 
 
 add_executable(replay_with_poses src/replay_with_poses.cpp src/gaze_features.cpp)

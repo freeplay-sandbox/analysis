@@ -26,6 +26,11 @@ shift $((OPTIND-1))
 
 [ "$1" = "--" ] && shift
 
+if [ "$#" -ne 1 ]; then
+    echo "Illegal number of parameters -- the full path to a bag file is expected."
+    exit 1
+fi
+
 bagpath=$1
 
 echo "Processing $bagpath..."

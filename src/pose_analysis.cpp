@@ -24,7 +24,7 @@
 
 #include <image_geometry/pinhole_camera_model.h>
 
-#include <depth_image_proc/depth_traits.h>
+#include "depth_traits.h"
 
 #include <boost/program_options.hpp>
 

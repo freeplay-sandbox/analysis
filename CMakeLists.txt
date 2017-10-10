@@ -98,8 +98,8 @@ install(TARGETS replay_with_poses
 
 catkin_install_python(PROGRAMS
     nodes/analysis
-    nodes/dataset_stats
     nodes/tf_camera_replicator
+    scripts/dataset_stats
     DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
 install(FILES plugin.xml

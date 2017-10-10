@@ -334,8 +334,10 @@ int main(int argc, char **argv) {
         ("face", po::value<bool>()->default_value(true), "display faces")
         ("hand", po::value<bool>()->default_value(true), "display hands")
         ("continuousgaze", po::value<bool>()->default_value(false), "continuously print the gaze features to stdout for live plotting")
+#ifdef WITH_CAFFE
         ("gaze", po::value<bool>()->default_value(false), "show gaze estimate")
         ("gaze_model", po::value<string>()->default_value("gaze.caffemodel"), "the trained Caffe model for gaze estimation")
+#endif
         ;
 
     po::variables_map vm;

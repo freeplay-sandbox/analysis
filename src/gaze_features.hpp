@@ -3,6 +3,12 @@
 
 #include <vector>
 #include <utility>
+#include <memory>
+
+#ifdef WITH_CAFFE
+#include <opencv2/core.hpp>
+#include <caffe/caffe.hpp>
+#endif
 
 #include "json.hpp"
 
@@ -15,10 +21,20 @@ const std::vector<size_t> FACIAL_POI    {36, 37, 38, 39, 40, 41, // right eye
 
 const std::vector<size_t> SKELETON_POI {0,1, 2, 5, 14,15,16,17}; // nose, neck, shoulders, left/right eyes & ears
 
-std::vector<double> getfeatures(const nlohmann::json& frame, bool mirror);
+std::vector<float> getfeatures(const nlohmann::json& frame, bool mirror);
 
 #ifdef WITH_CAFFE
-std::pair<double, double> get_gaze_estimate(const nlohmann::json& frame, bool mirror);
+class GazeEstimator {
+
+public:
+    GazeEstimator();
+    void initialize();
+    cv::Point2f estimate(const nlohmann::json& frame, bool mirror);
+
+private:
+
+    std::shared_ptr<caffe::Net<float>> net;
+};
 #endif
 
 #endif

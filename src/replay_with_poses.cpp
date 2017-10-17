@@ -158,6 +158,10 @@ const vector<Scalar> HAND_COLORS {      G1,   G1,    G1,    G1,
     G4,   G4,    G4,    G4
 };
 
+#ifdef WITH_CAFFE
+    GazeEstimator gazeEstimator;
+#endif
+
 bool interrupted = false;
 
 void my_handler(int s){
@@ -308,6 +312,17 @@ void printGazeFeatures(const json& frame, bool mirror, const string& topic) {
 
 }
 
+void printGazeEstimate(const json& frame, bool mirror, const string& topic) {
+
+#ifdef WITH_CAFFE
+    auto gaze = gazeEstimator.estimate(frame, mirror);
+
+    cout << topic << ": " << gaze << endl;
+#else
+    cerr << "Caffe is required to estimate gaze." << endl;
+#endif
+}
+
 int main(int argc, char **argv) {
 
 
@@ -334,6 +349,7 @@ int main(int argc, char **argv) {
         ("face", po::value<bool>()->default_value(true), "display faces")
         ("hand", po::value<bool>()->default_value(true), "display hands")
         ("continuousgaze", po::value<bool>()->default_value(false), "continuously print the gaze features to stdout for live plotting")
+        ("estimategaze", po::value<bool>()->default_value(false), "print the gaze pose estimate to stdout")
         ("gutter", po::value<int>()->default_value(0), "gutter (in pixels) between the two faces")
 #ifdef WITH_CAFFE
         ("gaze", po::value<bool>()->default_value(false), "show gaze estimate")
@@ -369,6 +385,12 @@ int main(int argc, char **argv) {
     }
 
     bool continous_gaze = vm["continuousgaze"].as<bool>();
+    bool estimate_gaze = vm["estimategaze"].as<bool>();
+
+#ifdef WITH_CAFFE
+    if(estimate_gaze) gazeEstimator.initialize();
+#endif
+
     int gutter = vm["gutter"].as<int>();
 
     bool with_video_bg = vm["camera"].as<bool>();
@@ -476,6 +498,8 @@ int main(int argc, char **argv) {
                             }
 
                             if(!no_draw && continous_gaze) printGazeFeatures(root[topic]["frames"][topicsIndices[topic]], mirror, topic);
+
+                            if(!no_draw && estimate_gaze) printGazeEstimate(root[topic]["frames"][topicsIndices[topic]], mirror, topic);
 
                             camimage.copyTo( image( roi ) );
                         }

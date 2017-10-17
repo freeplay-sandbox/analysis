@@ -67,6 +67,9 @@ Point2f GazeEstimator::estimate(const nlohmann::json& frame, bool mirror) {
     /* Copy the output layer to a std::vector */
     auto output_layer = net->output_blobs()[0];
     auto output_data = output_layer->cpu_data();
-    return Point2f(output_data[0], output_data[1]);
+    if(!mirror)
+        return Point2f(output_data[0], output_data[1]);
+    else
+        return Point2f(output_data[0], 1.-output_data[1]);
 }
 #endif

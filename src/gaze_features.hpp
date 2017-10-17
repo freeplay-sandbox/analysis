@@ -2,6 +2,7 @@
 #define _GAZE_FEATURES_HPP
 
 #include <vector>
+#include <deque>
 #include <utility>
 #include <memory>
 
@@ -36,5 +37,38 @@ private:
     std::shared_ptr<caffe::Net<float>> net;
 };
 #endif
+
+template<class T>
+class valuefilter {
+
+#define VALUE_FILTER_CAPACITY 10
+
+public:
+    valuefilter(size_t maxlen=VALUE_FILTER_CAPACITY) : maxlen(maxlen) {}
+
+    void append(T val) {
+        _dirty = true;
+        _vals.push_back(val);
+        if (_vals.size() > maxlen) _vals.pop_front();
+    }
+
+    T get() {
+
+        if (_dirty) {
+            T sum;
+            for (auto& v : _vals) sum += v;
+            _lastval = sum / (int) _vals.size();
+            _dirty = false;
+        }
+
+        return _lastval;
+    }
+
+private:
+        std::deque<T> _vals;
+        size_t maxlen;
+        T _lastval;
+        bool _dirty;
+};
 
 #endif

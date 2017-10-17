@@ -4,6 +4,7 @@
 #include <string>
 #include <thread> // std::this_thread
 #include <vector>
+#include <algorithm>
 
 #include <signal.h>
 #include <stdlib.h>
@@ -28,6 +29,7 @@
 
 #include "json.hpp"
 #include "gaze_features.hpp"
+#include "histogram.hpp"
 
 #define STR_EXPAND(tok) #tok
 #define STR(tok) STR_EXPAND(tok)
@@ -91,9 +93,11 @@ const Scalar WHITE(255,255,255);
 
 
 
-//const string BAG_FILE ("rectified_streams.bag");
-const string BAG_FILE ("freeplay.bag");
-const string POSES_FILE ("freeplay.poses.json");
+//const string BAG_FILE ("freeplay.bag");
+//const string POSES_FILE ("freeplay.poses.json");
+const string BAG_FILE ("visual_tracking.bag");
+const string POSES_FILE ("visual_tracking.poses.json");
+const string VISUAL_TARGET_POSES_FILE ("visual_target.poses.json");
 
 const float SKEL_FEATURE_LOW_CONFIDENCE_THRESHOLD = 0.05;
 const float SKEL_FEATURE_HIGH_CONFIDENCE_THRESHOLD = 0.2;
@@ -158,9 +162,15 @@ const vector<Scalar> HAND_COLORS {      G1,   G1,    G1,    G1,
     G4,   G4,    G4,    G4
 };
 
+const float SANDTRAY_LENGTH=600.; //mm
+const float SANDTRAY_WIDTH=340.; //mm
+
 #ifdef WITH_CAFFE
-    GazeEstimator gazeEstimator;
+GazeEstimator gazeEstimator;
+valuefilter<Point2f> purpleGaze;
+valuefilter<Point2f> yellowGaze;
 #endif
+Histogram<float> gazeAccuracyDistribution(10); // histogram bins = 10mm
 
 bool interrupted = false;
 
@@ -316,11 +326,66 @@ void printGazeEstimate(const json& frame, bool mirror, const string& topic) {
 
 #ifdef WITH_CAFFE
     auto gaze = gazeEstimator.estimate(frame, mirror);
-
     cout << topic << ": " << gaze << endl;
 #else
     cerr << "Caffe is required to estimate gaze." << endl;
 #endif
+}
+
+
+Point2f plotGazeEstimate(cv::Mat& image, const json& frame, bool mirror, const string& topic) {
+
+#ifdef WITH_CAFFE
+
+    auto gaze = gazeEstimator.estimate(frame, mirror);
+
+    Point2f res;
+
+    if(topic.find("yellow") != std::string::npos) {
+        yellowGaze.append(gaze);
+        res = yellowGaze.get();
+    }
+    else {
+        purpleGaze.append(gaze);
+        res = yellowGaze.get();
+    }
+
+    cv::circle(image, Point2f(purpleGaze.get().x * SANDTRAY_LENGTH, purpleGaze.get().y * SANDTRAY_WIDTH), 2, A, -1, cv::LINE_AA);
+    cv::circle(image, Point2f(yellowGaze.get().x * SANDTRAY_LENGTH, yellowGaze.get().y * SANDTRAY_WIDTH), 2, D, -1, cv::LINE_AA);
+
+    return res;
+#else
+    return Point2f();
+#endif
+}
+
+cv::Mat plotGazeAccuracyDistribution() {
+
+    Mat image(Size(1000,600), CV_8UC3, Scalar(0,0,0));
+
+    auto height = image.size().height;
+    auto caption_margin = 30; // pixels at the bottom to display axis caption
+
+    auto bar_width = 10;
+
+    auto bin_size = gazeAccuracyDistribution.bin_size;
+    auto nb_bins = gazeAccuracyDistribution.nb_bins;
+    auto hist = gazeAccuracyDistribution.get();
+
+    auto valmax = std::max(100u, gazeAccuracyDistribution.max);
+
+    for (size_t idx=0; idx < nb_bins; idx++) {
+        rectangle(image,
+                  Point(idx * bar_width, height - caption_margin), 
+                  Point(((idx+1) * bar_width) - 2, height - caption_margin - (hist[idx] * (height - 5 - caption_margin)/(float) valmax)),
+                  B, -1);
+    }
+
+    for (int i = 0; i * bar_width < image.size().width; i += 10) {
+        putText(image, to_string((int)(i * bin_size)) + "mm", Point(i * bar_width, height - 4),  FONT_HERSHEY_PLAIN, 1, WHITE,1, cv::LINE_AA);
+    }
+
+    return image;
 }
 
 int main(int argc, char **argv) {
@@ -452,6 +517,13 @@ int main(int argc, char **argv) {
 
     Size windowSize(960 * topics.size() + gutter, 540);
 
+    Mat gazePlot(Size(SANDTRAY_LENGTH, SANDTRAY_WIDTH), CV_8UC3, Scalar(0,0,0));
+    std::ifstream file(vm["path"].as<string>() + "/" + VISUAL_TARGET_POSES_FILE);
+    json visual_target_poses;
+    file >> visual_target_poses;
+
+
+
 
 
     int idx = 0;
@@ -471,6 +543,27 @@ int main(int argc, char **argv) {
             for(rosbag::MessageInstance const m : view)
             {
                 idx++;
+
+                ///////////////////////
+                // Gaze estimation plot
+                ///////////////////////
+
+                // fade to black
+                add(gazePlot, -1, gazePlot);
+                float target_idx = idx * visual_target_poses.size() / (float) total_nb_frames;
+                Point2f prev_target, next_target;
+
+                prev_target.x = -(float) visual_target_poses[target_idx][0] * 1000;
+                prev_target.y = (float) visual_target_poses[target_idx][1] * 1000;
+
+                next_target.x = -(float) visual_target_poses[target_idx+1][0] * 1000;
+                next_target.y = (float) visual_target_poses[target_idx+1][1] * 1000;
+                auto target = prev_target + (next_target - prev_target) * (target_idx - (int) target_idx);
+
+                cv::circle(gazePlot, target, 3, E3, -1, cv::LINE_AA);
+
+                auto gazeHist = plotGazeAccuracyDistribution();
+                ///////////////////////
 
 
                 for (size_t t_idx = 0; t_idx < topics.size(); t_idx++) {
@@ -499,7 +592,16 @@ int main(int argc, char **argv) {
 
                             if(!no_draw && continous_gaze) printGazeFeatures(root[topic]["frames"][topicsIndices[topic]], mirror, topic);
 
-                            if(!no_draw && estimate_gaze) printGazeEstimate(root[topic]["frames"][topicsIndices[topic]], mirror, topic);
+                            //if(!no_draw && estimate_gaze) printGazeEstimate(root[topic]["frames"][topicsIndices[topic]], mirror, topic);
+                            if(!no_draw && estimate_gaze) {
+
+                                auto gazePose = plotGazeEstimate(gazePlot, root[topic]["frames"][topicsIndices[topic]], mirror, topic);
+
+#ifdef WITH_CAFFE
+                                gazeAccuracyDistribution.add(norm(gazePose - target));
+#endif
+
+                            }
 
                             camimage.copyTo( image( roi ) );
                         }
@@ -513,6 +615,8 @@ int main(int argc, char **argv) {
                     else
                     {
                         imshow("Pose replay", image);
+                        imshow("Gaze estimate", gazePlot);
+                        imshow("Gaze distribution", gazeHist);
                         auto k = waitKey(30);
                         if (k == 27) interrupted = true;
                         if (k == 32) { // space
@@ -563,6 +667,7 @@ int main(int argc, char **argv) {
                     }
 
                     if(!no_draw && continous_gaze) printGazeFeatures(root[topic]["frames"][idx], mirror, topic);
+                    if(!no_draw && estimate_gaze) printGazeEstimate(root[topic]["frames"][topicsIndices[topic]], mirror, topic);
 
                     camimage.copyTo( image( roi ) );
                 }

@@ -334,6 +334,7 @@ int main(int argc, char **argv) {
         ("face", po::value<bool>()->default_value(true), "display faces")
         ("hand", po::value<bool>()->default_value(true), "display hands")
         ("continuousgaze", po::value<bool>()->default_value(false), "continuously print the gaze features to stdout for live plotting")
+        ("gutter", po::value<int>()->default_value(0), "gutter (in pixels) between the two faces")
 #ifdef WITH_CAFFE
         ("gaze", po::value<bool>()->default_value(false), "show gaze estimate")
         ("gaze_model", po::value<string>()->default_value("gaze.caffemodel"), "the trained Caffe model for gaze estimation")
@@ -368,6 +369,8 @@ int main(int argc, char **argv) {
     }
 
     bool continous_gaze = vm["continuousgaze"].as<bool>();
+    int gutter = vm["gutter"].as<int>();
+
     bool with_video_bg = vm["camera"].as<bool>();
 
     bool show_skel = vm["skeleton"].as<bool>();
@@ -425,7 +428,7 @@ int main(int argc, char **argv) {
     // feature mirroring, for gaze estimation
     bool mirror = false;
 
-    Size windowSize(960 * topics.size(), 540);
+    Size windowSize(960 * topics.size() + gutter, 540);
 
 
 
@@ -465,7 +468,7 @@ int main(int argc, char **argv) {
                         if (compressed_rgb != NULL) {
                             topicsIndices[topic] += 1;
                             auto camimage = imdecode(compressed_rgb->data,1);
-                            Rect roi( Point( 960 * t_idx, 0 ), camimage.size() );
+                            Rect roi( Point( 960 * t_idx + (gutter * t_idx), 0 ), camimage.size() );
 
 
                             if(!no_draw) {
@@ -529,7 +532,7 @@ int main(int argc, char **argv) {
 
 
                     Mat camimage(960, 540, CV_8UC3, Scalar(0,0,0));
-                    Rect roi( Point( 960 * t_idx, 0 ), camimage.size() );
+                    Rect roi( Point( 960 * t_idx + (gutter * t_idx), 0 ), camimage.size() );
 
                     if(!no_draw) {
                         camimage = drawPose(camimage, root[topic]["frames"][idx], show_skel, show_face, show_hand);

@@ -20,6 +20,7 @@ find_package(Caffe)
 
 
 if(${Caffe_FOUND})
+    add_definitions(-DWITH_CAFFE)
     option(WITH_OPENPOSE "Build with OpenPose support" OFF)
 else()
     message(WARNING "Caffe/OpenPose not found -- pose detection will not be available")
@@ -28,7 +29,6 @@ endif()
 
 if(${WITH_OPENPOSE})
     include_directories(${Caffe_INCLUDE_DIRS})
-    add_definitions(-DUSE_CAFFE)
 
     find_package(PkgConfig REQUIRED)
     pkg_search_module(OPENPOSE REQUIRED openpose)

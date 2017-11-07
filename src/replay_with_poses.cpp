@@ -169,6 +169,8 @@ const float SANDTRAY_WIDTH=340.; //mm
 GazeEstimator gazeEstimator;
 valuefilter<Point2f> purpleGaze;
 valuefilter<Point2f> yellowGaze;
+
+Mat mapBg = imread("share/map.png");
 #endif
 Histogram<float> gazeAccuracyDistribution(10); // histogram bins = 10mm
 
@@ -343,11 +345,11 @@ Point2f plotGazeEstimate(cv::Mat& image, const json& frame, bool mirror, const s
 
     if(topic.find("yellow") != std::string::npos) {
         yellowGaze.append(gaze);
-        res = yellowGaze.get();
+        res = Point2f(yellowGaze.get().x * SANDTRAY_LENGTH, yellowGaze.get().y * SANDTRAY_WIDTH);
     }
     else {
         purpleGaze.append(gaze);
-        res = yellowGaze.get();
+        res = Point2f(yellowGaze.get().x * SANDTRAY_LENGTH, yellowGaze.get().y * SANDTRAY_WIDTH);
     }
 
     cv::circle(image, Point2f(purpleGaze.get().x * SANDTRAY_LENGTH, purpleGaze.get().y * SANDTRAY_WIDTH), 2, A, -1, cv::LINE_AA);
@@ -361,7 +363,7 @@ Point2f plotGazeEstimate(cv::Mat& image, const json& frame, bool mirror, const s
 
 cv::Mat plotGazeAccuracyDistribution() {
 
-    Mat image(Size(1000,600), CV_8UC3, Scalar(0,0,0));
+    Mat image(Size(700,400), CV_8UC3, Scalar(0,0,0));
 
     auto height = image.size().height;
     auto caption_margin = 30; // pixels at the bottom to display axis caption
@@ -380,6 +382,22 @@ cv::Mat plotGazeAccuracyDistribution() {
                   Point(((idx+1) * bar_width) - 2, height - caption_margin - (hist[idx] * (height - 5 - caption_margin)/(float) valmax)),
                   B, -1);
     }
+
+    // average
+    auto avg = gazeAccuracyDistribution.avg();
+    rectangle(image,
+              Point(avg * bar_width / bin_size - 2, height - caption_margin), 
+              Point(avg * bar_width / bin_size + 2, caption_margin),
+              A, -1);
+    putText(image, to_string((int)avg)+"mm", Point(avg * bar_width / bin_size + 10, caption_margin + 50), FONT_HERSHEY_PLAIN, 1, WHITE, 1, cv::LINE_AA);
+
+    // stddev
+    auto stddev = gazeAccuracyDistribution.stddev();
+    rectangle(image,
+              Point(avg * bar_width / bin_size - stddev, height - caption_margin), 
+              Point(avg * bar_width / bin_size + stddev, height - caption_margin - 5),
+              C, -1);
+
 
     for (int i = 0; i * bar_width < image.size().width; i += 10) {
         putText(image, to_string((int)(i * bin_size)) + "mm", Point(i * bar_width, height - 4),  FONT_HERSHEY_PLAIN, 1, WHITE,1, cv::LINE_AA);
@@ -549,15 +567,16 @@ int main(int argc, char **argv) {
                 ///////////////////////
 
                 // fade to black
+                //gazePlot = mapBg.clone();
                 add(gazePlot, -1, gazePlot);
                 float target_idx = idx * visual_target_poses.size() / (float) total_nb_frames;
                 Point2f prev_target, next_target;
 
-                prev_target.x = -(float) visual_target_poses[target_idx][0] * 1000;
-                prev_target.y = (float) visual_target_poses[target_idx][1] * 1000;
+                prev_target.x = -(float) visual_target_poses[target_idx][0] * 1000; // in mm, 0 > x > 600
+                prev_target.y = (float) visual_target_poses[target_idx][1] * 1000; // in mm, 0 > y > 340
 
-                next_target.x = -(float) visual_target_poses[target_idx+1][0] * 1000;
-                next_target.y = (float) visual_target_poses[target_idx+1][1] * 1000;
+                next_target.x = -(float) visual_target_poses[target_idx+1][0] * 1000; // in mm
+                next_target.y = (float) visual_target_poses[target_idx+1][1] * 1000; // in mm
                 auto target = prev_target + (next_target - prev_target) * (target_idx - (int) target_idx);
 
                 cv::circle(gazePlot, target, 3, E3, -1, cv::LINE_AA);
@@ -615,14 +634,15 @@ int main(int argc, char **argv) {
                     else
                     {
                         imshow("Pose replay", image);
+                        //addWeighted(gazePlot, 1, gazePlotWithBg, 1, 0.0, gazePlotWithBg);
                         imshow("Gaze estimate", gazePlot);
                         imshow("Gaze distribution", gazeHist);
-                        auto k = waitKey(30);
+                        auto k = waitKey(30) & 0xFF;
                         if (k == 27) interrupted = true;
                         if (k == 32) { // space
                             // pause
                             while (true) {
-                                if (waitKey(30) == 32) break;
+                                if ((waitKey(30) & 0xFF) == 32) break;
                             }
                         }
                         if (!no_draw && k == 115) show_skel = !show_skel; // s
@@ -677,12 +697,12 @@ int main(int argc, char **argv) {
                 }
                 else {
                     imshow("Pose replay", image);
-                    auto k = waitKey(30);
+                    auto k = waitKey(30) & 0xFF;
                     if (k == 27) interrupted = true;
                     if (k == 32) { // space
                         // pause
                         while (true) {
-                            if (waitKey(30) == 32) break;
+                            if ((waitKey(30) & 0xFF) == 32) break;
                         }
                     }
 

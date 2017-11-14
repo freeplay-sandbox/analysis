@@ -15,6 +15,34 @@ sandbox' recordings.
 The interface is heavily based on
 [rqt_bag](https://github.com/ros-visualization/rqt_common_plugins/tree/master/rqt_bag).
 
+Data replay
+-----------
+
+### Replaying with rosbag
+
+```
+rosbag play <bag file>
+```
+
+
+### Replaying the pose & facial data overlaid on the videos
+
+
+You need to have compiled the `replay_with_poses` utility.
+
+Then:
+```
+./replay_with_poses --topics camera_purple/rgb/image_raw/compressed camera_yellow/rgb/image_raw/compressed  --path $DATASET/<session>/
+```
+
+`replay_with_poses` has many options (to display or not raw video stream,
+skeletons, gaze estimate, etc.). Check `replay_with_poses --help`.
+
+Note that gaze estimation requires the [Caffe machine learning
+framework](http://caffe.berkeleyvision.org/) which is packaged in recent
+versions of Ubuntu -- `apt install caffe-cuda`.
+
+
 Dataset processing
 ------------------
 

@@ -1,8 +1,6 @@
 #include <cmath>
 #include <ctime>
 
-#include <ros/ros.h>
-
 #include <opencv2/calib3d/calib3d.hpp>
 
 #ifdef HEAD_POSE_ESTIMATION_DEBUG
@@ -10,120 +8,21 @@
 #include <iostream>
 #endif
 
-#include "head_pose_estimation.hpp"
+#include "head_pose_estimator.hpp"
 
-using namespace dlib;
 using namespace std;
 using namespace cv;
 
-inline Point toCv(const dlib::point& p)
-{
-    return Point(p.x(), p.y());
-}
 
-
-HeadPoseEstimation::HeadPoseEstimation(const string& face_detection_model, float focalLength) :
+HeadPoseEstimation::HeadPoseEstimation(float focalLength, float opticalCenterX, float opticalCenterY) :
         focalLength(focalLength),
-        opticalCenterX(-1),
-        opticalCenterY(-1)
+        opticalCenterX(opticalCenterX),
+        opticalCenterY(opticalCenterY)
 {
-    // Load face detection and pose estimation models.
-    detector = get_frontal_face_detector();
-    deserialize(face_detection_model) >> pose_model;
 }
 
 
-std::vector<std::vector<Point>> HeadPoseEstimation::update(cv::InputArray _image)
-{
-
-    Mat image = _image.getMat();
-
-    if (opticalCenterX == -1) // not initialized yet
-    {
-        opticalCenterX = image.cols / 2;
-        opticalCenterY = image.rows / 2;
-#ifdef HEAD_POSE_ESTIMATION_DEBUG
-        cerr << "Setting the optical center to (" << opticalCenterX << ", " << opticalCenterY << ")" << endl;
-#endif
-    }
-
-    current_image = cv_image<bgr_pixel>(image);
-
-    faces = detector(current_image);
-
-    // Find the pose of each face.
-    shapes.clear();
-    for (auto face : faces){
-        shapes.push_back(pose_model(current_image, face));
-    }
-
-    std::vector<std::vector<Point>> all_features;
-
-    for (size_t j = 0; j < shapes.size(); ++j)
-    {
-        std::vector<Point> features;
-        const full_object_detection& d = shapes[j];
-
-        for (size_t i = 0; i < 68; ++i)
-        {
-            features.push_back(toCv(d.part(i)));
-        }
-
-        all_features.push_back(features);
-    }
-
-
-#ifdef HEAD_POSE_ESTIMATION_DEBUG
-    // Draws the contours of the face and face features onto the image
-    
-    _debug = image.clone();
-
-    auto color = Scalar(0,128,128);
-
-    for (size_t j = 0; j < shapes.size(); ++j)
-    {
-        const full_object_detection& d = shapes[j];
-
-        for (size_t i = 1; i <= 16; ++i)
-            line(_debug, toCv(d.part(i)), toCv(d.part(i-1)), color, 2, CV_AA);
-
-        for (size_t i = 28; i <= 30; ++i)
-            line(_debug, toCv(d.part(i)), toCv(d.part(i-1)), color, 2, CV_AA);
-
-        for (size_t i = 18; i <= 21; ++i)
-            line(_debug, toCv(d.part(i)), toCv(d.part(i-1)), color, 2, CV_AA);
-        for (size_t i = 23; i <= 26; ++i)
-            line(_debug, toCv(d.part(i)), toCv(d.part(i-1)), color, 2, CV_AA);
-        for (size_t i = 31; i <= 35; ++i)
-            line(_debug, toCv(d.part(i)), toCv(d.part(i-1)), color, 2, CV_AA);
-        line(_debug, toCv(d.part(30)), toCv(d.part(35)), color, 2, CV_AA);
-
-        for (size_t i = 37; i <= 41; ++i)
-            line(_debug, toCv(d.part(i)), toCv(d.part(i-1)), color, 2, CV_AA);
-        line(_debug, toCv(d.part(36)), toCv(d.part(41)), color, 2, CV_AA);
-
-        for (size_t i = 43; i <= 47; ++i)
-            line(_debug, toCv(d.part(i)), toCv(d.part(i-1)), color, 2, CV_AA);
-        line(_debug, toCv(d.part(42)), toCv(d.part(47)), color, 2, CV_AA);
-
-        for (size_t i = 49; i <= 59; ++i)
-            line(_debug, toCv(d.part(i)), toCv(d.part(i-1)), color, 2, CV_AA);
-        line(_debug, toCv(d.part(48)), toCv(d.part(59)), color, 2, CV_AA);
-
-        for (size_t i = 61; i <= 67; ++i)
-            line(_debug, toCv(d.part(i)), toCv(d.part(i-1)), color, 2, CV_AA);
-        line(_debug, toCv(d.part(60)), toCv(d.part(67)), color, 2, CV_AA);
-
-        for (size_t i = 0; i < 68 ; i++) {
-            putText(_debug, to_string(i), toCv(d.part(i)), FONT_HERSHEY_DUPLEX, 0.6, Scalar(255,255,255));
-        }
-    }
-#endif
-
-    return all_features;
-}
-
-head_pose HeadPoseEstimation::pose(size_t face_idx) const
+head_pose HeadPoseEstimation::pose(const std::array<feature,70> facial_features) const
 {
 
     cv::Mat projectionMat = cv::Mat::zeros(3,3,CV_32F);
@@ -147,15 +46,15 @@ head_pose HeadPoseEstimation::pose(size_t face_idx) const
 
     std::vector<Point2f> detected_points;
 
-    detected_points.push_back(coordsOf(face_idx, SELLION));
-    detected_points.push_back(coordsOf(face_idx, RIGHT_EYE));
-    detected_points.push_back(coordsOf(face_idx, LEFT_EYE));
-    detected_points.push_back(coordsOf(face_idx, RIGHT_SIDE));
-    detected_points.push_back(coordsOf(face_idx, LEFT_SIDE));
-    detected_points.push_back(coordsOf(face_idx, MENTON));
-    detected_points.push_back(coordsOf(face_idx, NOSE));
+    detected_points.push_back(coordsOf(facial_features, SELLION));
+    detected_points.push_back(coordsOf(facial_features, RIGHT_EYE));
+    detected_points.push_back(coordsOf(facial_features, LEFT_EYE));
+    detected_points.push_back(coordsOf(facial_features, RIGHT_SIDE));
+    detected_points.push_back(coordsOf(facial_features, LEFT_SIDE));
+    detected_points.push_back(coordsOf(facial_features, MENTON));
+    detected_points.push_back(coordsOf(facial_features, NOSE));
 
-    auto stomion = (coordsOf(face_idx, MOUTH_CENTER_TOP) + coordsOf(face_idx, MOUTH_CENTER_BOTTOM)) * 0.5;
+    auto stomion = (coordsOf(facial_features, MOUTH_CENTER_TOP) + coordsOf(facial_features, MOUTH_CENTER_BOTTOM)) * 0.5;
     detected_points.push_back(stomion);
 
 
@@ -213,21 +112,22 @@ head_pose HeadPoseEstimation::pose(size_t face_idx) const
     return pose;
 }
 
-std::vector<head_pose> HeadPoseEstimation::poses() const {
+std::vector<head_pose> HeadPoseEstimation::poses(const vector<array<feature,70>> faces) const {
 
     std::vector<head_pose> res;
 
-    for (auto i = 0; i < faces.size(); i++){
-        res.push_back(pose(i));
+    for (const auto& face : faces){
+        res.push_back(pose(face));
     }
 
     return res;
 
 }
 
-Point2f HeadPoseEstimation::coordsOf(size_t face_idx, FACIAL_FEATURE feature) const
+Point2f HeadPoseEstimation::coordsOf(const std::array<feature,70> facial_features, FACIAL_FEATURE feature) const
 {
-    return toCv(shapes[face_idx].part(feature));
+    return Point2f(get<0>(facial_features[feature]),
+                   get<1>(facial_features[feature]));
 }
 
 // Finds the intersection of two lines, or returns false.

@@ -2,11 +2,9 @@
 #define __HEAD_POSE_ESTIMATION
 
 #include <opencv2/core/core.hpp>
-#include <dlib/opencv.h>
-#include <dlib/image_processing.h>
-#include <dlib/image_processing/frontal_face_detector.h>
 
 #include <vector>
+#include <tuple>
 #include <array>
 #include <string>
 
@@ -24,10 +22,7 @@ const static cv::Point3f P3D_STOMMION(10.0, 0., -75.0);
 const static cv::Point3f P3D_MENTON(0., 0.,-133.0);
 
 
-
-static const int MAX_FEATURES_TO_TRACK=100;
-
-// Interesting facial features with their landmark index
+// Interesting facial features with their OpenPose/dlib landmark index
 enum FACIAL_FEATURE {
     NOSE=30,
     RIGHT_EYE=36,
@@ -48,21 +43,16 @@ enum FACIAL_FEATURE {
 
 
 typedef cv::Matx44d head_pose;
+typedef std::tuple<uint, uint, float> feature; // a point in pixels + confidence
 
 class HeadPoseEstimation {
 
 public:
 
-    HeadPoseEstimation(const std::string& face_detection_model = "shape_predictor_68_face_landmarks.dat", float focalLength=455.);
+    HeadPoseEstimation(float focalLength, float opticalCenterX, float opticalCenterY);
 
-    /** Returns the 2D position (in image coordinates) of the 68 facial features
-     * detected by dlib (or an empty vector if no face is detected).
-     */
-    std::vector<std::vector<cv::Point>> update(cv::InputArray image);
-
-    head_pose pose(size_t face_idx) const;
-
-    std::vector<head_pose> poses() const;
+    head_pose pose(const std::array<feature,70> facial_features) const;
+    std::vector<head_pose> poses(const std::vector<std::array<feature,70>> faces) const;
 
     float focalLength;
     float opticalCenterX;
@@ -74,19 +64,9 @@ public:
 
 private:
 
-    dlib::cv_image<dlib::bgr_pixel> current_image;
-
-    dlib::frontal_face_detector detector;
-    dlib::shape_predictor pose_model;
-
-    std::vector<dlib::rectangle> faces;
-
-    std::vector<dlib::full_object_detection> shapes;
-
-
     /** Return the point corresponding to the dictionary marker.
     */
-    cv::Point2f coordsOf(size_t face_idx, FACIAL_FEATURE feature) const;
+    cv::Point2f coordsOf(const std::array<feature,70> facial_features, FACIAL_FEATURE feature) const;
 
     /** Returns true if the lines intersect (and set r to the intersection
      *  coordinates), false otherwise.

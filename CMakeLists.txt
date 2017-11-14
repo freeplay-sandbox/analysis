@@ -89,7 +89,7 @@ add_executable(check_pose_data src/check_pose_data.cpp)
 target_link_libraries(check_pose_data ${Boost_LIBRARIES} ${YAML_CPP_LIBRARIES})
 
 
-add_executable(replay_with_poses src/replay_with_poses.cpp src/gaze_features.cpp)
+add_executable(replay_with_poses src/replay_with_poses.cpp src/gaze_features.cpp src/head_pose_estimator.cpp)
 target_link_libraries(replay_with_poses ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})
 
 add_executable(prepare_visual_tracking_dataset src/prepare_visual_tracking_dataset.cpp src/gaze_features.cpp)

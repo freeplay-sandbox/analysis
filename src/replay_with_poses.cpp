@@ -311,19 +311,6 @@ cv::Mat drawPose(cv::Mat image, const json& frame, bool skeletons, bool faces, b
 
 }
 
-void printGazeFeatures(const json& frame, bool mirror, const string& topic) {
-
-    auto features = getfeatures(frame, mirror);
-
-    json res;
-    res["topic"] = topic;
-    res["mirror"] = mirror;
-    res["features"] = features;
-
-    cout << res << endl;
-
-}
-
 void printGazeEstimate(const json& frame, bool mirror, const string& topic) {
 
 #ifdef WITH_CAFFE
@@ -431,13 +418,9 @@ int main(int argc, char **argv) {
         ("skeleton", po::value<bool>()->default_value(true), "display skeletons")
         ("face", po::value<bool>()->default_value(true), "display faces")
         ("hand", po::value<bool>()->default_value(true), "display hands")
-        ("continuousgaze", po::value<bool>()->default_value(false), "continuously print the gaze features to stdout for live plotting")
-        ("estimategaze", po::value<bool>()->default_value(false), "print the gaze pose estimate to stdout")
         ("gutter", po::value<int>()->default_value(0), "gutter (in pixels) between the two faces")
-#ifdef WITH_CAFFE
+        ("estimategaze", po::value<bool>()->default_value(false), "print the gaze pose estimate to stdout")
         ("gaze", po::value<bool>()->default_value(false), "show gaze estimate")
-        ("gaze_model", po::value<string>()->default_value("gaze.caffemodel"), "the trained Caffe model for gaze estimation")
-#endif
         ;
 
     po::variables_map vm;
@@ -609,8 +592,6 @@ int main(int argc, char **argv) {
                                 camimage = drawPose(camimage, root[topic]["frames"][topicsIndices[topic]], show_skel, show_face, show_hand);
                             }
 
-                            if(!no_draw && continous_gaze) printGazeFeatures(root[topic]["frames"][topicsIndices[topic]], mirror, topic);
-
                             //if(!no_draw && estimate_gaze) printGazeEstimate(root[topic]["frames"][topicsIndices[topic]], mirror, topic);
                             if(!no_draw && estimate_gaze) {
 
@@ -686,7 +667,6 @@ int main(int argc, char **argv) {
                         camimage = drawPose(camimage, root[topic]["frames"][idx], show_skel, show_face, show_hand);
                     }
 
-                    if(!no_draw && continous_gaze) printGazeFeatures(root[topic]["frames"][idx], mirror, topic);
                     if(!no_draw && estimate_gaze) printGazeEstimate(root[topic]["frames"][topicsIndices[topic]], mirror, topic);
 
                     camimage.copyTo( image( roi ) );

@@ -1,6 +1,6 @@
 #! /bin/bash
 
-EXEC=$HOME/src/freeplay-sandbox-analysis/build/devel/lib/freeplay_sandbox_analysis/faces_analysis
+EXEC=$HOME/src/freeplay-sandbox-analysis/build/devel/lib/freeplay_sandbox_analysis/extract_poses
 DATASET_ROOT=/media/$USER/DoRoThy1/freeplay_sandbox/data
 
 OPENPOSE_MODELS=/opt/openpose/models

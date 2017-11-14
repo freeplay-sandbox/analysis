@@ -68,10 +68,10 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 #target_link_libraries(mutual_gaze_segmentation ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})
 
 if(${WITH_OPENPOSE})
-    add_executable(faces_analysis src/faces_analysis.cpp)
-    target_link_libraries(faces_analysis ${OpenCV_LIBRARIES} ${Caffe_LIBRARIES} ${OPENPOSE_LIBRARIES} ${catkin_LIBRARIES})
+    add_executable(extract_poses src/extract_poses.cpp)
+    target_link_libraries(extract_poses ${OpenCV_LIBRARIES} ${Caffe_LIBRARIES} ${OPENPOSE_LIBRARIES} ${catkin_LIBRARIES})
 
-    install(TARGETS faces_analysis
+    install(TARGETS extract_poses
         ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -95,7 +95,7 @@ target_link_libraries(replay_with_poses ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})
 add_executable(prepare_visual_tracking_dataset src/prepare_visual_tracking_dataset.cpp src/gaze_features.cpp)
 target_link_libraries(prepare_visual_tracking_dataset ${catkin_LIBRARIES})
 
-#install(TARGETS mutual_gaze_segmentation faces_analysis
+#install(TARGETS mutual_gaze_segmentation extract_poses
 install(TARGETS replay_with_poses
     ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}

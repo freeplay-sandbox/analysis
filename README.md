@@ -38,6 +38,9 @@ Then:
 `replay_with_poses` has many options (to display or not raw video stream,
 skeletons, gaze estimate, etc.). Check `replay_with_poses --help`.
 
+
+![Gaze estimation](docs/gaze_tracking_distribution.png)
+
 Note that gaze estimation requires the [Caffe machine learning
 framework](http://caffe.berkeleyvision.org/) which is packaged in recent
 versions of Ubuntu -- `apt install caffe-cuda`.

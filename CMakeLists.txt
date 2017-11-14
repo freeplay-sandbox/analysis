@@ -23,7 +23,7 @@ if(${Caffe_FOUND})
     add_definitions(-DWITH_CAFFE)
     option(WITH_OPENPOSE "Build with OpenPose support" OFF)
 else()
-    message(WARNING "Caffe/OpenPose not found -- pose detection will not be available")
+    message(WARNING "Caffe not found -- pose detection will not be available")
 endif()
 
 

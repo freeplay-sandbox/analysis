@@ -2,7 +2,9 @@
 #include "gaze_features.hpp"
 
 using namespace std;
+#ifdef WITH_CAFFE
 using namespace cv;
+#endif
 using namespace nlohmann; // json
 
 vector<float> getfeatures(const json& frame, bool mirror) {

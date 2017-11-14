@@ -92,11 +92,10 @@ const Scalar H4( 14, 64,  0);
 const Scalar WHITE(255,255,255);
 
 
-
-//const string BAG_FILE ("freeplay.bag");
-//const string POSES_FILE ("freeplay.poses.json");
-const string BAG_FILE ("visual_tracking.bag");
-const string POSES_FILE ("visual_tracking.poses.json");
+const string BAG_FILE ("freeplay.bag");
+const string POSES_FILE ("freeplay.poses.json");
+//const string BAG_FILE ("visual_tracking.bag");
+//const string POSES_FILE ("visual_tracking.poses.json");
 const string VISUAL_TARGET_POSES_FILE ("visual_target.poses.json");
 
 const float SKEL_FEATURE_LOW_CONFIDENCE_THRESHOLD = 0.05;
@@ -172,6 +171,7 @@ valuefilter<Point2f> yellowGaze;
 
 Mat mapBg = imread("share/map.png");
 #endif
+
 Histogram<float> gazeAccuracyDistribution(10); // histogram bins = 10mm
 
 bool interrupted = false;
@@ -316,8 +316,6 @@ void printGazeEstimate(const json& frame, bool mirror, const string& topic) {
 #ifdef WITH_CAFFE
     auto gaze = gazeEstimator.estimate(frame, mirror);
     cout << topic << ": " << gaze << endl;
-#else
-    cerr << "Caffe is required to estimate gaze." << endl;
 #endif
 }
 
@@ -411,7 +409,7 @@ int main(int argc, char **argv) {
     desc.add_options()
         ("help,h", "produces help message")
         ("version,v", "shows version and exits")
-        ("topics", po::value<vector<string>>()->multitoken(), "topic(s) to process (must be of type CompressedImage)")
+        ("topics", po::value<vector<string>>()->multitoken()->default_value({"camera_purple/rgb/image_raw/compressed","camera_yellow/rgb/image_raw/compressed"},"camera_purple/rgb/image_raw/compressed, camera_yellow/rgb/image_raw/compressed"), "topic(s) to process (must be of type CompressedImage)")
         ("path", po::value<string>(), "record path (must contain experiment.yaml and freeplay.bag)")
         ("video", po::value<string>()->default_value(""), "if set to a path, save result as video (eg '/path/to/video.mkv')")
         ("camera", po::value<bool>()->default_value(true), "show camera stream (if disabled, draws skeletons on black background)")
@@ -419,8 +417,8 @@ int main(int argc, char **argv) {
         ("face", po::value<bool>()->default_value(true), "display faces")
         ("hand", po::value<bool>()->default_value(true), "display hands")
         ("gutter", po::value<int>()->default_value(0), "gutter (in pixels) between the two faces")
-        ("estimategaze", po::value<bool>()->default_value(false), "print the gaze pose estimate to stdout")
-        ("gaze", po::value<bool>()->default_value(false), "show gaze estimate")
+        ("gaze", "show gaze estimate")
+        ("echo-gaze", "continuously print out the gaze pose estimate to stdout")
         ;
 
     po::variables_map vm;
@@ -440,21 +438,38 @@ int main(int argc, char **argv) {
         return 0;
     }
 
+    bool estimate_gaze = false;
+    bool echo_gaze = false;
+    if (vm.count("gaze") != 0) {
+#ifdef WITH_CAFFE
+        bool estimate_gaze = true;
+#else
+        cerr << "The --gaze option is only available when compiled with caffe support." << endl;
+        return 1;
+#endif
+    }
+    if (vm.count("echo-gaze") != 0) {
+#ifdef WITH_CAFFE
+        bool echo_gaze = true;
+#else
+        cerr << "The --echo-gaze option is only available when compiled with caffe support." << endl;
+        return 1;
+#endif
+    }
+
+    if (!vm.count("path")) {
+        cerr << "You must provide a record path with --path.\n";
+        return 1;
+    }
+
     if (vm.count("topics") == 0) {
         cerr << "You must specify topic(s) to process with --topics" << endl;
         return 1;
     }
 
-    if (!vm.count("path")) {
-        cerr << "You must provide a record path.\n";
-        return 1;
-    }
-
-    bool continous_gaze = vm["continuousgaze"].as<bool>();
-    bool estimate_gaze = vm["estimategaze"].as<bool>();
 
 #ifdef WITH_CAFFE
-    if(estimate_gaze) gazeEstimator.initialize();
+    if(estimate_gaze || echo_gaze) gazeEstimator.initialize();
 #endif
 
     int gutter = vm["gutter"].as<int>();
@@ -519,12 +534,14 @@ int main(int argc, char **argv) {
     Size windowSize(960 * topics.size() + gutter, 540);
 
     Mat gazePlot(Size(SANDTRAY_LENGTH, SANDTRAY_WIDTH), CV_8UC3, Scalar(0,0,0));
-    std::ifstream file(vm["path"].as<string>() + "/" + VISUAL_TARGET_POSES_FILE);
     json visual_target_poses;
-    file >> visual_target_poses;
-
-
-
+    bool has_visual_target = false;
+    std::ifstream visual_target_file(vm["path"].as<string>() + "/" + VISUAL_TARGET_POSES_FILE);
+    if(!visual_target_file.fail()) {
+        cerr << "Loading visual target reference." << endl;
+        visual_target_file >> visual_target_poses;
+        has_visual_target = true;
+    }
 
 
     int idx = 0;
@@ -545,27 +562,29 @@ int main(int argc, char **argv) {
             {
                 idx++;
 
-                ///////////////////////
-                // Gaze estimation plot
-                ///////////////////////
+                if(estimate_gaze && has_visual_target) {
+                    ////////////////////////////////
+                    // Gaze estimation distribution
+                    ////////////////////////////////
 
-                // fade to black
-                //gazePlot = mapBg.clone();
-                add(gazePlot, -1, gazePlot);
-                float target_idx = idx * visual_target_poses.size() / (float) total_nb_frames;
-                Point2f prev_target, next_target;
+                    // fade to black
+                    //gazePlot = mapBg.clone();
+                    add(gazePlot, -1, gazePlot);
+                    float target_idx = idx * visual_target_poses.size() / (float) total_nb_frames;
+                    Point2f prev_target, next_target;
 
-                prev_target.x = -(float) visual_target_poses[target_idx][0] * 1000; // in mm, 0 > x > 600
-                prev_target.y = (float) visual_target_poses[target_idx][1] * 1000; // in mm, 0 > y > 340
+                    prev_target.x = -(float) visual_target_poses[target_idx][0] * 1000; // in mm, 0 > x > 600
+                    prev_target.y = (float) visual_target_poses[target_idx][1] * 1000; // in mm, 0 > y > 340
 
-                next_target.x = -(float) visual_target_poses[target_idx+1][0] * 1000; // in mm
-                next_target.y = (float) visual_target_poses[target_idx+1][1] * 1000; // in mm
-                auto target = prev_target + (next_target - prev_target) * (target_idx - (int) target_idx);
+                    next_target.x = -(float) visual_target_poses[target_idx+1][0] * 1000; // in mm
+                    next_target.y = (float) visual_target_poses[target_idx+1][1] * 1000; // in mm
+                    auto target = prev_target + (next_target - prev_target) * (target_idx - (int) target_idx);
 
-                cv::circle(gazePlot, target, 3, E3, -1, cv::LINE_AA);
+                    cv::circle(gazePlot, target, 3, E3, -1, cv::LINE_AA);
 
-                auto gazeHist = plotGazeAccuracyDistribution();
-                ///////////////////////
+                    auto gazeHist = plotGazeAccuracyDistribution();
+                    ///////////////////////
+                }
 
 
                 for (size_t t_idx = 0; t_idx < topics.size(); t_idx++) {
@@ -592,7 +611,8 @@ int main(int argc, char **argv) {
                                 camimage = drawPose(camimage, root[topic]["frames"][topicsIndices[topic]], show_skel, show_face, show_hand);
                             }
 
-                            //if(!no_draw && estimate_gaze) printGazeEstimate(root[topic]["frames"][topicsIndices[topic]], mirror, topic);
+                            if(!no_draw && echo_gaze) printGazeEstimate(root[topic]["frames"][topicsIndices[topic]], mirror, topic);
+
                             if(!no_draw && estimate_gaze) {
 
                                 auto gazePose = plotGazeEstimate(gazePlot, root[topic]["frames"][topicsIndices[topic]], mirror, topic);
@@ -615,9 +635,14 @@ int main(int argc, char **argv) {
                     else
                     {
                         imshow("Pose replay", image);
-                        //addWeighted(gazePlot, 1, gazePlotWithBg, 1, 0.0, gazePlotWithBg);
-                        imshow("Gaze estimate", gazePlot);
-                        imshow("Gaze distribution", gazeHist);
+
+                        if(estimate_gaze) {
+                            imshow("Gaze estimate", gazePlot);
+                            if(has_visual_target) {
+                                 imshow("Gaze distribution", gazeHist);
+                            }
+                        }
+
                         auto k = waitKey(30) & 0xFF;
                         if (k == 27) interrupted = true;
                         if (k == 32) { // space
@@ -667,7 +692,17 @@ int main(int argc, char **argv) {
                         camimage = drawPose(camimage, root[topic]["frames"][idx], show_skel, show_face, show_hand);
                     }
 
-                    if(!no_draw && estimate_gaze) printGazeEstimate(root[topic]["frames"][topicsIndices[topic]], mirror, topic);
+                    if(!no_draw && echo_gaze) printGazeEstimate(root[topic]["frames"][topicsIndices[topic]], mirror, topic);
+
+                    if(!no_draw && estimate_gaze) {
+
+                        auto gazePose = plotGazeEstimate(gazePlot, root[topic]["frames"][topicsIndices[topic]], mirror, topic);
+
+#ifdef WITH_CAFFE
+                        gazeAccuracyDistribution.add(norm(gazePose - target));
+#endif
+
+                    }
 
                     camimage.copyTo( image( roi ) );
                 }

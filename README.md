@@ -1,11 +1,10 @@
-Free-play Sandbox -- Data-analyse GUI
-=====================================
+Free-play Sandbox -- Data Analysis
+==================================
 
-*This is the sister repository to [the ROS-based
-framework](https://github.com/severin-lemaignan/freeplay-sandbox-ros) and [the
-QtQuick-based GUI](https://github.com/severin-lemaignan/freeplay-sandbox-qt) of
-the 'Free-play Sandbox' experimental framework for Cognitive Human-Robot
-Interaction research.*
+*This project is part of the 'Free-play Sandbox' experimental framework for
+Cognitive Human-Robot Interaction research. [Check the PInSoRo
+website](https://freeplay-sandbox.github.io/) for details and
+[documentation](https://freeplay-sandbox.github.io/freeplay-software)*.
 
 ![Screenshoot of the GUI](docs/screenshot.jpg)
 
@@ -28,7 +27,13 @@ rosbag play <bag file>
 ### Replaying the pose & facial data overlaid on the videos
 
 
-You need to have compiled the `replay_with_poses` utility.
+You need to compile first the `replay_with_poses` utility:
+
+```
+mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release ..
+make
+```
 
 Then:
 ```
@@ -39,11 +44,22 @@ Then:
 skeletons, gaze estimate, etc.). Check `replay_with_poses --help`.
 
 
-![Gaze estimation](docs/gaze_tracking_distribution.png)
+Using the `--video <output.mkv>` option, you can export the resulting video. The
+script [`generate_videos`](scripts/generate_videos) shows how to use this
+feature to extract the video stream from the whole dataset.
 
-Note that gaze estimation requires the [Caffe machine learning
+### Gaze estimation
+
+
+Gaze estimation requires the [Caffe machine learning
 framework](http://caffe.berkeleyvision.org/) which is packaged in recent
 versions of Ubuntu -- `apt install caffe-cuda`.
+
+Once Caffe is installed, reconfigure and recompile `replay_with_pose`.
+`replay_with_poses --help` should now have options to enable gaze estimation:
+
+
+![Gaze estimation](docs/gaze_tracking_distribution.png)
 
 
 Dataset processing
@@ -149,27 +165,43 @@ Other processings
 -----------------
 
 
-- to extract a video stream from one of the bag file and save it as a video:
+### Convert a bag video stream to a regular video
 
+You can extract a video stream from one of the bag file and save it as a video.
+
+First, install the `bag_tools`:
+```sh
+sudo apt install ros-kinetic-bag-tools
 ```
-$ rosrun bag_tools make_video.py <topic> <bag> --output <output.mp4> --fps <fps>
+
+Then:
+
+```sh
+rosrun bag_tools make_video.py <topic> <bag> --output <output.mp4> --fps <fps>
 ```
 
 For instance:
-```
-$ rosrun bag_tools make_video.py env_camera/qhd/image_color/compressed freeplay.bag --output freeplay_env.mp4 --fps 28.0
+```sh
+rosrun bag_tools make_video.py env_camera/qhd/image_color/compressed freeplay.bag --output freeplay_env.mp4 --fps 28.0
 ```
 
 (note that, due to an upstream bug, one needs first to replace the type of the `fps`
 parameter from `int` to `float` in `make_video.py` for non-integer FPS to work)
 
-- to extract audio and save it as an audio file:
+**Alternatively, you can use `replay_with_pose` to replay the videos (including
+overlaying skeleton/face features if desired) and save them as video files. [See
+above for details](#replaying-the-pose--facial-data-overlaid-on-the-videos).**
 
-```
-$ rosrun audio_play audio_play audio:=<topic> _dst:=<file.ogg>
+### Convert a bag audio stream to a regular audio file
+
+To extract audio and save it as an audio file:
+
+```sh
+rosrun audio_play audio_play audio:=<topic> _dst:=<file.ogg>
 ```
 
 For instance:
-```
-$ rosrun audio_play audio_play audio:=camera_purple/audio _dst:=freeplay_purple.ogg
+```sh
+rosrun audio_play audio_play audio:=camera_purple/audio _dst:=freeplay_purple.ogg &
+rosbag play freeplay.bag
 ```

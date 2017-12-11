@@ -17,9 +17,10 @@ find_package(yaml-cpp REQUIRED)
 include_directories(${YAML_CPP_INCLUDE_DIRS})
 
 find_package(Caffe)
-
+include_directories(${Caffe_DIR}/../../include)
 
 if(${Caffe_FOUND})
+    message(STATUS "Found Caffe at ${Caffe_DIR} -- building with support for gaze estimation")
     add_definitions(-DWITH_CAFFE)
     option(WITH_OPENPOSE "Build with OpenPose support" OFF)
 else()

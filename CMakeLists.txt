@@ -57,12 +57,8 @@ catkin_package(
     LIBRARIES 
 )
 
-find_package(OpenCV COMPONENTS core imgproc calib3d highgui REQUIRED)
+find_package(OpenCV 3.1 COMPONENTS core imgproc calib3d highgui REQUIRED)
 message(STATUS "OpenCV version: ${OpenCV_VERSION}")
-if(${OpenCV_VERSION} VERSION_GREATER 2.9.0)
-    set(OPENCV3 TRUE)
-    add_definitions(-DOPENCV3)
-endif()
 include_directories(${OpenCV_INCLUDE_DIRS})
 
 #add_executable(mutual_gaze_segmentation src/mutual_gaze_segmentation.cpp)
@@ -102,6 +98,9 @@ install(TARGETS replay_with_poses
     LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
+
+add_executable(optical_flow src/optical_flow.cpp)
+target_link_libraries(optical_flow ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})
 
 add_executable(vad src/vad.cpp)
 target_link_libraries(vad ${catkin_LIBRARIES} ${YAML_CPP_LIBRARIES})

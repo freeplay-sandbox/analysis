@@ -293,17 +293,20 @@ cv::Mat drawPose(cv::Mat image, const json& frame, bool skeletons, bool faces, b
 
     Mat bg = image.clone();
 
+    //auto ts = frame["ts"].get<double>();
+    //cerr << std::setprecision (std::numeric_limits<double>::digits10 + 1) << ts << endl;
+    
     // first, background
-    if(skeletons) bg = drawSkeleton(bg, frame["poses"], true); // only background
-    if(hands) bg = drawHands(bg, frame["hands"], true);
-    if(faces) bg = drawFace(bg, frame["faces"], true);
+    if(skeletons && frame.count("poses") == 1) bg = drawSkeleton(bg, frame["poses"], true); // only background
+    if(hands && frame.count("hands") == 1) bg = drawHands(bg, frame["hands"], true);
+    if(faces && frame.count("faces") == 1) bg = drawFace(bg, frame["faces"], true);
 
     cv::addWeighted(image, 0.5, bg, 0.5, 0.0, image);
 
     // then foreground
-    if(skeletons) image = drawSkeleton(image, frame["poses"], false); // only foreground
-    if(hands) image = drawHands(image, frame["hands"], false);
-    if(faces) image = drawFace(image, frame["faces"], false);
+    if(skeletons && frame.count("poses") == 1) image = drawSkeleton(image, frame["poses"], false); // only foreground
+    if(hands && frame.count("hands") == 1) image = drawHands(image, frame["hands"], false);
+    if(faces && frame.count("faces") == 1) image = drawFace(image, frame["faces"], false);
 
 
     return image;
@@ -562,6 +565,7 @@ int main(int argc, char **argv) {
             {
                 idx++;
 
+#ifdef WITH_CAFFE
                 if(estimate_gaze && has_visual_target) {
                     ////////////////////////////////
                     // Gaze estimation distribution
@@ -585,6 +589,7 @@ int main(int argc, char **argv) {
                     auto gazeHist = plotGazeAccuracyDistribution();
                     ///////////////////////
                 }
+#endif
 
 
                 for (size_t t_idx = 0; t_idx < topics.size(); t_idx++) {
@@ -636,12 +641,14 @@ int main(int argc, char **argv) {
                     {
                         imshow("Pose replay", image);
 
+#ifdef WITH_CAFFE
                         if(estimate_gaze) {
                             imshow("Gaze estimate", gazePlot);
                             if(has_visual_target) {
                                  imshow("Gaze distribution", gazeHist);
                             }
                         }
+#endif
 
                         auto k = waitKey(30) & 0xFF;
                         if (k == 27) interrupted = true;

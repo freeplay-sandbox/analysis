@@ -19,12 +19,14 @@ include_directories(${YAML_CPP_INCLUDE_DIRS})
 find_package(Caffe)
 include_directories(${Caffe_DIR}/../../include)
 
-if(${Caffe_FOUND})
+option(WITH_CAFFE_SUPPORT "Build with Caffe support" ${Caffe_FOUND})
+
+if(${WITH_CAFFE_SUPPORT} AND ${Caffe_FOUND})
     message(STATUS "Found Caffe at ${Caffe_DIR} -- building with support for gaze estimation")
     add_definitions(-DWITH_CAFFE)
     option(WITH_OPENPOSE "Build with OpenPose support" OFF)
 else()
-    message(WARNING "Caffe not found -- pose detection will not be available")
+    message(STATUS "Caffe not enabled/not found -- pose detection will not be available")
 endif()
 
 

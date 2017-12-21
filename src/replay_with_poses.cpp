@@ -13,6 +13,7 @@
 
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/video/tracking.hpp>
 #include <cv_bridge/cv_bridge.h>
 
 #include <rosbag/bag.h>
@@ -180,6 +181,36 @@ void my_handler(int s){
     printf("Caught signal %d\n",s);
     interrupted = true; 
 }
+
+// Taken from https://stackoverflow.com/a/7697644
+Mat showFlow(Mat flow) {
+    //extraxt x and y channels
+    Mat xy[2]; //X,Y
+    split(flow, xy);
+
+    //calculate angle and magnitude
+    Mat magnitude, angle;
+    cartToPolar(xy[0], xy[1], magnitude, angle, true);
+
+    //translate magnitude to range [0;1]
+    double mag_max;
+    minMaxLoc(magnitude, 0, &mag_max);
+    magnitude.convertTo(magnitude, -1, 1.0 / mag_max);
+
+    //build hsv image
+    Mat _hsv[3], hsv;
+    _hsv[0] = angle;
+    _hsv[1] = Mat::ones(angle.size(), CV_32F);
+    _hsv[2] = magnitude;
+    merge(_hsv, 3, hsv);
+
+    //convert to BGR and show
+    Mat bgr;//CV_32FC3 matrix
+    cvtColor(hsv, bgr, cv::COLOR_HSV2BGR);
+
+    return bgr;
+}
+
 
 cv::Mat drawSkeleton(cv::Mat image, const json& skel, bool bg=false) {
 
@@ -419,6 +450,7 @@ int main(int argc, char **argv) {
         ("skeleton", po::value<bool>()->default_value(true), "display skeletons")
         ("face", po::value<bool>()->default_value(true), "display faces")
         ("hand", po::value<bool>()->default_value(true), "display hands")
+        ("opticalflow", po::value<bool>()->default_value(false), "compute TV-L1 optical flow. Override other display options")
         ("gutter", po::value<int>()->default_value(0), "gutter (in pixels) between the two faces")
         ("gaze", "show gaze estimate")
         ("echo-gaze", "continuously print out the gaze pose estimate to stdout")
@@ -482,7 +514,13 @@ int main(int argc, char **argv) {
     bool show_skel = vm["skeleton"].as<bool>();
     bool show_face = vm["face"].as<bool>();
     bool show_hand = vm["hand"].as<bool>();
-    bool no_draw = !show_skel && !show_face && !show_hand;
+
+    bool show_optical_flow = vm["opticalflow"].as<bool>();
+    // TV-L1 optical flow, using default values
+    map<string, Mat> prev_images;
+    auto opticalFlow = cv::createOptFlow_DualTVL1();
+
+    bool no_draw = show_optical_flow || (!show_skel && !show_face && !show_hand);
 
     int total_nb_frames = 0;
 
@@ -611,24 +649,39 @@ int main(int argc, char **argv) {
                             auto camimage = imdecode(compressed_rgb->data,1);
                             Rect roi( Point( 960 * t_idx + (gutter * t_idx), 0 ), camimage.size() );
 
+                            if(show_optical_flow) {
+                                cvtColor(camimage, camimage, COLOR_BGR2GRAY);
+                                if(topicsIndices[topic] > 1) {
+                                    Mat optflow;
+                                    opticalFlow->calc(prev_images[topic], camimage, optflow);
+                                    showFlow(optflow).copyTo( image( roi ) );
+                                    cerr << "Frame " << topicsIndices[topic] << " of topic " << topic << endl;
+                                }
 
-                            if(!no_draw) {
-                                camimage = drawPose(camimage, root[topic]["frames"][topicsIndices[topic]], show_skel, show_face, show_hand);
+                                prev_images[topic] = camimage;
+
                             }
+                            else {
 
-                            if(!no_draw && echo_gaze) printGazeEstimate(root[topic]["frames"][topicsIndices[topic]], mirror, topic);
 
-                            if(!no_draw && estimate_gaze) {
+                                if(!no_draw) {
+                                    camimage = drawPose(camimage, root[topic]["frames"][topicsIndices[topic]], show_skel, show_face, show_hand);
+                                }
 
-                                auto gazePose = plotGazeEstimate(gazePlot, root[topic]["frames"][topicsIndices[topic]], mirror, topic);
+                                if(!no_draw && echo_gaze) printGazeEstimate(root[topic]["frames"][topicsIndices[topic]], mirror, topic);
 
 #ifdef WITH_CAFFE
-                                gazeAccuracyDistribution.add(norm(gazePose - target));
+                                if(!no_draw && estimate_gaze) {
+
+                                    auto gazePose = plotGazeEstimate(gazePlot, root[topic]["frames"][topicsIndices[topic]], mirror, topic);
+
+                                    gazeAccuracyDistribution.add(norm(gazePose - target));
+
+                                }
 #endif
 
+                                camimage.copyTo( image( roi ) );
                             }
-
-                            camimage.copyTo( image( roi ) );
                         }
                     }
                 }

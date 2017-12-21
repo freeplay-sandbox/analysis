@@ -654,7 +654,7 @@ int main(int argc, char **argv) {
                                 if(topicsIndices[topic] > 1) {
                                     Mat optflow;
                                     opticalFlow->calc(prev_images[topic], camimage, optflow);
-                                    showFlow(optflow).copyTo( image( roi ) );
+                                    showFlow(optflow).convertTo( image( roi ), CV_8UC3, 255. );
                                     cerr << "Frame " << topicsIndices[topic] << " of topic " << topic << endl;
                                 }
 

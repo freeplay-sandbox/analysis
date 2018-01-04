@@ -745,7 +745,7 @@ int main(int argc, char **argv) {
                     }
 
 
-                    Mat camimage(960, 540, CV_8UC3, Scalar(0,0,0));
+                    Mat camimage(540, 960, CV_8UC3, Scalar(0,0,0));
                     Rect roi( Point( 960 * t_idx + (gutter * t_idx), 0 ), camimage.size() );
 
                     if(!no_draw) {

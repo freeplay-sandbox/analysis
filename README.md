@@ -46,7 +46,7 @@ skeletons, gaze estimate, etc.). Check `replay_with_poses --help`.
 
 Using the `--video <output.mkv>` option, you can export the resulting video. The
 script [`generate_videos`](scripts/generate_videos) shows how to use this
-feature to extract the video stream from the whole dataset.
+feature to extract the video streams for the whole dataset.
 
 ### Gaze estimation
 
@@ -205,3 +205,9 @@ For instance:
 rosrun audio_play audio_play audio:=camera_purple/audio _dst:=freeplay_purple.ogg &
 rosbag play freeplay.bag
 ```
+
+### Generate a video mosaic of the whole dataset
+
+Once the video streams have been extracted from the bag files (cf above), you
+can use the script [`create_video_mosaic`](scripts/create_video_mosaic) to
+generate a mosaic with 49 streams tiled together. This requires `ffmpeg`.

@@ -3,22 +3,24 @@
 
 DATASET_ROOT=/media/$USER/DoRoThy1/freeplay_sandbox/data
 
+# the final mosaic will be made of size X size videos
+# can be overriden from the command line, for instance:
+# $ SIZE=5 ./create_video_mosaic
+: ${SIZE:=7}
 
 paths=($DATASET_ROOT/2017**/videos/camera_purple.mkv)
 paths+=($DATASET_ROOT/2017**/videos/camera_yellow.mkv)
-paths=( $(shuf -e "${paths[@]}") )
+paths=( $(shuf -e "${paths[@]}") ) # randomize the order of the videos
 
 args_raw=()
 args_raw_skel=()
 args_skel=()
-ffmpeg_streams=""
+ffmpeg_filter=""
 
-size=7
-start_idx=22
 
-for ((i=0;i<$size*$size;i++))
+for ((i=0;i<$SIZE*$SIZE;i++))
 do
-    f=${paths[$i + $start_idx]}
+    f=${paths[$i]}
     
     dir=$(dirname $f)
     base=$(basename $f .mkv)
@@ -26,50 +28,41 @@ do
     args_raw[$i]=" -i $dir/${base}_raw.mkv"
     args_raw_skel[$i]=" -i $dir/${base}.mkv"
     args_skel[$i]=" -i $dir/${base}_skel.mkv"
-    ffmpeg_streams+="[$i:v] setpts=PTS-STARTPTS, trim=duration=60:start=30 [v$i];"
+    ffmpeg_filter+="[$i:v] setpts=PTS-STARTPTS, trim=duration=60:start=30 [v$i];"
 done
+
+vstreams=""
+for ((i=0;i<$SIZE;i++))
+do
+    hstreams=""
+    for ((j=$i*$SIZE;j<($i+1)*$SIZE;j++))
+    do
+        hstreams+="[v$j]"
+    done
+    ffmpeg_filter+="$hstreams hstack=$SIZE [h$i];"
+    vstreams+="[h$i]"
+done
+
+ffmpeg_filter+="$vstreams vstack=$SIZE [prezoom];"
+
 
 ffmpeg ${args_raw[@]} \
     -filter_complex "
-        $ffmpeg_streams
-        [v1][v2][v3][v4][v17][v26][v27] hstack=$size [h1];
-        [v5][v6][v7][v8][v18][v28][v29] hstack=$size [h2];
-        [v9][v10][v11][v12][v19][v30][v31] hstack=$size [h3];
-        [v13][v14][v15][v16][v20][v32][v33] hstack=$size [h4];
-        [v21][v22][v23][v24][v25][v34][v35] hstack=$size [h5];
-        [v36][v37][v38][v39][v40][v41][v42] hstack=$size [h6];
-        [v43][v44][v45][v46][v47][v48][v0] hstack=$size [h7];
-        [h1][h2][h3][h4][h5][h6][h7] vstack=$size [prezoom];
-        [prezoom] zoompan=z='if(lte(in,200),$size,if(lte(pzoom,1.0),$size,max(1.001,pzoom * 0.994)))':x=trunc(iw/2-iw/pzoom/2):y=trunc(ih/2-ih/pzoom/2):d=1:s=960x540
+        $ffmpeg_filter
+        [prezoom] zoompan=z='if(lte(in,200),$SIZE,if(lte(pzoom,1.0),$SIZE,max(1.001,pzoom * 0.994)))':x=trunc(iw/2-iw/pzoom/2):y=trunc(ih/2-ih/pzoom/2):d=1:s=960x540
     " \
     -c:v libx264 mosaic_raw.mkv
 
 ffmpeg ${args_raw_skel[@]} \
     -filter_complex "
-        $ffmpeg_streams
-        [v1][v2][v3][v4][v17][v26][v27] hstack=$size [h1];
-        [v5][v6][v7][v8][v18][v28][v29] hstack=$size [h2];
-        [v9][v10][v11][v12][v19][v30][v31] hstack=$size [h3];
-        [v13][v14][v15][v16][v20][v32][v33] hstack=$size [h4];
-        [v21][v22][v23][v24][v25][v34][v35] hstack=$size [h5];
-        [v36][v37][v38][v39][v40][v41][v42] hstack=$size [h6];
-        [v43][v44][v45][v46][v47][v48][v0] hstack=$size [h7];
-        [h1][h2][h3][h4][h5][h6][h7] vstack=$size [prezoom];
-        [prezoom] zoompan=z='if(lte(in,200),$size,if(lte(pzoom,1.0),$size,max(1.001,pzoom * 0.994)))':x=trunc(iw/2-iw/pzoom/2):y=trunc(ih/2-ih/pzoom/2):d=1:s=960x540
+        $ffmpeg_filter
+        [prezoom] zoompan=z='if(lte(in,200),$SIZE,if(lte(pzoom,1.0),$SIZE,max(1.001,pzoom * 0.994)))':x=trunc(iw/2-iw/pzoom/2):y=trunc(ih/2-ih/pzoom/2):d=1:s=960x540
     " \
     -c:v libx264 mosaic_raw_skel.mkv
 
 ffmpeg ${args_skel[@]} \
     -filter_complex "
-        $ffmpeg_streams
-        [v1][v2][v3][v4][v17][v26][v27] hstack=$size [h1];
-        [v5][v6][v7][v8][v18][v28][v29] hstack=$size [h2];
-        [v9][v10][v11][v12][v19][v30][v31] hstack=$size [h3];
-        [v13][v14][v15][v16][v20][v32][v33] hstack=$size [h4];
-        [v21][v22][v23][v24][v25][v34][v35] hstack=$size [h5];
-        [v36][v37][v38][v39][v40][v41][v42] hstack=$size [h6];
-        [v43][v44][v45][v46][v47][v48][v0] hstack=$size [h7];
-        [h1][h2][h3][h4][h5][h6][h7] vstack=$size [prezoom];
-        [prezoom] zoompan=z='if(lte(in,200),$size,if(lte(pzoom,1.0),$size,max(1.001,pzoom * 0.994)))':x=trunc(iw/2-iw/pzoom/2):y=trunc(ih/2-ih/pzoom/2):d=1:s=960x540
+        $ffmpeg_filter
+        [prezoom] zoompan=z='if(lte(in,200),$SIZE,if(lte(pzoom,1.0),$SIZE,max(1.001,pzoom * 0.994)))':x=trunc(iw/2-iw/pzoom/2):y=trunc(ih/2-ih/pzoom/2):d=1:s=960x540
     " \
     -c:v libx264 mosaic_skel.mkv

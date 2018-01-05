@@ -61,7 +61,7 @@ do
     if [ ! -f videos/env_camera_optical_flow.mkv ]; then
         $EXEC --topic env_camera/qhd/image_color/compressed --path . --opticalflow=on --video videos/env_camera_optical_flow.mkv || { echo "video creation failed for $dir. Skipping." ; cd ..; continue; }
 
-    #fi
+    fi
 
     
     # SKELETON ALONE

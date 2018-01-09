@@ -13,7 +13,11 @@
 
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#ifdef CUDA_CV
+#include <opencv2/cudaoptflow.hpp>
+#else
 #include <opencv2/video/tracking.hpp>
+#endif
 #include <cv_bridge/cv_bridge.h>
 
 #include <rosbag/bag.h>
@@ -465,6 +469,18 @@ int main(int argc, char **argv) {
 
     if (vm.count("help")) {
         cout << argv[0] << " " << STR(FREEPLAY_ANALYSIS_VERSION) << "\n\n" << desc << "\n";
+
+#ifdef CUDA_CV
+        cout << "-- compiled with CUDA support for OpenCV." << endl;
+#else
+        cout << "!! compiled *without* CUDA support for OpenCV." << endl;
+#endif
+
+#ifdef WITH_CAFFE
+        cout << "-- compiled with Caffe support enabled." << endl;
+#else
+        cout << "!! compiled *without* Caffe support." << endl;
+#endif
         return 1;
     }
 
@@ -518,7 +534,11 @@ int main(int argc, char **argv) {
     bool show_optical_flow = vm["opticalflow"].as<bool>();
     // TV-L1 optical flow, using default values
     map<string, Mat> prev_images;
+#ifdef CUDA_CV
+    auto opticalFlow = cuda::OpticalFlowDual_TVL1::create();
+#else
     auto opticalFlow = cv::createOptFlow_DualTVL1();
+#endif
 
     bool no_draw = show_optical_flow || (!show_skel && !show_face && !show_hand);
 
@@ -604,6 +624,8 @@ int main(int argc, char **argv) {
                 idx++;
 
 #ifdef WITH_CAFFE
+                Point2f target;
+                cv::Mat gazeHist;
                 if(estimate_gaze && has_visual_target) {
                     ////////////////////////////////
                     // Gaze estimation distribution
@@ -620,11 +642,11 @@ int main(int argc, char **argv) {
 
                     next_target.x = -(float) visual_target_poses[target_idx+1][0] * 1000; // in mm
                     next_target.y = (float) visual_target_poses[target_idx+1][1] * 1000; // in mm
-                    auto target = prev_target + (next_target - prev_target) * (target_idx - (int) target_idx);
+                    target = prev_target + (next_target - prev_target) * (target_idx - (int) target_idx);
 
                     cv::circle(gazePlot, target, 3, E3, -1, cv::LINE_AA);
 
-                    auto gazeHist = plotGazeAccuracyDistribution();
+                    gazeHist = plotGazeAccuracyDistribution();
                     ///////////////////////
                 }
 #endif
@@ -652,8 +674,16 @@ int main(int argc, char **argv) {
                             if(show_optical_flow) {
                                 cvtColor(camimage, camimage, COLOR_BGR2GRAY);
                                 if(topicsIndices[topic] > 1) {
+#ifdef CUDA_CV
+                                    cuda::GpuMat gpu_frame0(prev_images[topic]);
+                                    cuda::GpuMat gpu_frame1(camimage);
+                                    cuda::GpuMat gpu_optflow(camimage.size(), CV_32FC2);
+                                    opticalFlow->calc(gpu_frame0, gpu_frame1, gpu_optflow);
+                                    Mat optflow(gpu_optflow);
+#else
                                     Mat optflow;
                                     opticalFlow->calc(prev_images[topic], camimage, optflow);
+#endif
                                     showFlow(optflow).convertTo( image( roi ), CV_8UC3, 255. );
                                     cerr << "Frame " << topicsIndices[topic] << " of topic " << topic << endl;
                                 }
@@ -757,10 +787,6 @@ int main(int argc, char **argv) {
                     if(!no_draw && estimate_gaze) {
 
                         auto gazePose = plotGazeEstimate(gazePlot, root[topic]["frames"][topicsIndices[topic]], mirror, topic);
-
-#ifdef WITH_CAFFE
-                        gazeAccuracyDistribution.add(norm(gazePose - target));
-#endif
 
                     }
 

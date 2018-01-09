@@ -2,11 +2,26 @@ cmake_minimum_required(VERSION 2.8.3)
 project(freeplay_sandbox_analysis)
 
 set(CPACK_PACKAGE_VERSION_MAJOR "0")
-set(CPACK_PACKAGE_VERSION_MINOR "1")
+set(CPACK_PACKAGE_VERSION_MINOR "2")
 set(CPACK_PACKAGE_VERSION_PATCH "0")
 set(VERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH})
 
 add_definitions(-std=c++11 -DFREEPLAY_ANALYSIS_VERSION=${VERSION})
+
+find_package(OpenCV 3.1 COMPONENTS core imgproc calib3d highgui REQUIRED cudaoptflow)
+message(STATUS "OpenCV version: ${OpenCV_VERSION}")
+message(STATUS "OpenCV include dirs: ${OpenCV_INCLUDE_DIRS}")
+include_directories(${OpenCV_INCLUDE_DIRS})
+
+if(OpenCV_CUDA_VERSION)
+    option(WITH_CUDA_OPENCV_SUPPORT "Build with CUDA OpenCV support" ON)
+    if(${WITH_CUDA_OPENCV_SUPPORT})
+        message(STATUS "OpenCV compiled with CUDA v${OpenCV_CUDA_VERSION} support. Great. Using it for optical flow.")
+        add_definitions(-DCUDA_CV)
+    else()
+        message(STATUS "Even though OpenCV compiled with CUDA, support manually disabled.")
+    endif()
+endif()
 
 find_package(Eigen3 REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIRS})
@@ -58,10 +73,6 @@ catkin_package(
     CATKIN_DEPENDS rosbag
     LIBRARIES 
 )
-
-find_package(OpenCV 3.1 COMPONENTS core imgproc calib3d highgui REQUIRED)
-message(STATUS "OpenCV version: ${OpenCV_VERSION}")
-include_directories(${OpenCV_INCLUDE_DIRS})
 
 #add_executable(mutual_gaze_segmentation src/mutual_gaze_segmentation.cpp)
 #target_link_libraries(mutual_gaze_segmentation ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})

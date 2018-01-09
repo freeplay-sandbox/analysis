@@ -10,7 +10,12 @@
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
+#ifdef CUDA_CV
+#include <opencv2/cudaarithm.hpp>
+#include <opencv2/cudaoptflow.hpp>
+#else
 #include <opencv2/video/tracking.hpp>
+#endif
 
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
@@ -154,7 +159,11 @@ int main(int argc, char **argv) {
     // for each topic, stores a pair <current image, prev image>
     map<string, pair<Mat, Mat>> images;
     
+#ifdef CUDA_CV
+    auto opticalFlow = cuda::OpticalFlowDual_TVL1::create();
+#else
     auto opticalFlow = cv::createOptFlow_DualTVL1();
+#endif
     // tau = 0.25,
     // lambda = 0.15,
     // theta = 0.3,
@@ -198,8 +207,25 @@ int main(int argc, char **argv) {
                     images[topic].first = camimage;
 
                     if(topicsIndices[topic] > 1) {
+                    
+                        const int64 start = getTickCount();
+#ifdef CUDA_CV
+                        
+                        cuda::GpuMat gpu_frame0(images[topic].first);
+                        cuda::GpuMat gpu_frame1(images[topic].second);
+                        cuda::GpuMat gpu_optflow(images[topic].first.size(), CV_32FC2);
+                        opticalFlow->calc(gpu_frame0, gpu_frame1, gpu_optflow);
+                        Mat optflow(gpu_optflow);
+#else
                         Mat optflow;
                         opticalFlow->calc(images[topic].first, images[topic].second, optflow);
+#endif
+                        const double timeSec = (getTickCount() - start) / getTickFrequency();
+#ifdef CUDA_CV
+                        cout << "TVL1 (CUDA accelerated): " << timeSec << " sec, " << 1./timeSec << "fps" << endl;
+#else
+                        cout << "TVL1 (CPU only): " << timeSec << " sec, " << 1./timeSec << "fps" << endl;
+#endif
 
                         imshow(topic, showFlow(optflow));
                         //Rect roi( Point( 960 * t_idx, 0 ), camimage.size() );

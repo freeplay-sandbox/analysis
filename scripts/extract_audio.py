@@ -118,17 +118,10 @@ def createWaveform(wavFileName):
     plt.show()
 
 
-
-
-if __name__=="__main__":
-
-    parser = argparse.ArgumentParser(description='PInSoRo Dataset -- ROS bags audio extractor')
-    parser.add_argument("path", help="path to a bag file. Audio will be saved to a new subdirectory audio/")
-
-    args = parser.parse_args()
-    bag_path = args.path
+def process_bag(bag_path, force=False):
 
     dest = os.path.join(os.path.abspath(os.path.dirname(bag_path)), "audio")
+    basename = os.path.basename(bag_path)[:-4] # remove .bag extension
     print("Extracted audio files will be saved to %s" % dest)
     if not os.path.exists(dest):
         os.makedirs(dest)
@@ -141,11 +134,32 @@ if __name__=="__main__":
 
     for topic in topics:
         if "audio" in topic["topic"]:
-            filename = topic["topic"].replace("/", "_") + ".mp3"
+            filename = "%s_%s.mp3" % (basename, topic["topic"].replace("/", "_"))
+            if os.path.exists(os.path.join(dest, filename)) and not force:
+                continue
             print("Extracting %s to %s\n" % (topic["topic"], filename))
             audioData, frequency = audio_bag_file(bag, topic) 
 
             mp3FileName = write_mp3_file(audioData, os.path.join(dest, filename))
             print("Converting %s to WAV..." % filename)
             mp3_to_wav(mp3FileName, frequency)
+
+if __name__=="__main__":
+
+    parser = argparse.ArgumentParser(description='PInSoRo Dataset -- ROS bags audio extractor')
+    parser.add_argument("path", help="path to a directory or a bag file. Directories are recursively traversed for bag files")
+    parser.add_argument("-f", "--force", action='store_true', help="if true, overwrite existing files. Otherwise, skip them.")
+
+    args = parser.parse_args()
+
+    if args.path.endswith(".bag"):
+        process_bag(args.path, args.force)
+    else: # directory
+
+        for dirpath, dirs, files in os.walk(args.path, topdown=False):
+            print("Processing %s" % dirpath)
+            for name in files:
+                if name.endswith(".bag"):
+                    sourcepath = os.path.abspath(os.path.join(args.path, dirpath, name))
+                    process_bag(sourcepath, args.force)
 

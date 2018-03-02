@@ -84,7 +84,7 @@ def mp3_to_wav(mp3Path, frequency):
     #call arg not file...
     wavFileName = mp3Path.replace(".mp3",".wav")
     #write 1.6 kHz
-    subprocess.call(['ffmpeg', '-i', mp3Path, '-y', '-ar', '16000', '-ac', '1', wavFileName])
+    subprocess.call(['ffmpeg', '-v', 'quiet', '-i', mp3Path, '-y', '-ar', '16000', '-ac', '1', wavFileName])
     return wavFileName
 
 #play wav file
@@ -128,7 +128,11 @@ def process_bag(bag_path, force=False):
 
     print("Opening %s (this may take up to several min depending on the size of the bag file)..." % bag_path)
 
-    bag = rosbag.Bag(bag_path, 'r')
+    try:
+        bag = rosbag.Bag(bag_path, 'r')
+    except:
+        print("[EE] Error while opening %s. Skipping it." % bag_path)
+        return
 
     topics = yaml.load(bag._get_yaml_info())["topics"]
 

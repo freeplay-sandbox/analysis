@@ -8,10 +8,17 @@ set(VERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPAC
 
 add_definitions(-std=c++11 -DFREEPLAY_ANALYSIS_VERSION=${VERSION})
 
-find_package(OpenCV 3.1 COMPONENTS core imgproc calib3d highgui REQUIRED cudaoptflow)
-message(STATUS "OpenCV version: ${OpenCV_VERSION}")
-message(STATUS "OpenCV include dirs: ${OpenCV_INCLUDE_DIRS}")
-include_directories(${OpenCV_INCLUDE_DIRS})
+find_package(BLAS REQUIRED)
+add_library(blas INTERFACE IMPORTED)
+set_property(TARGET blas PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${BLAS_INCLUDE_DIRS})
+set_property(TARGET blas PROPERTY INTERFACE_LINK_LIBRARIES ${BLAS_LIBRARIES} ${BLAS95_LIBRARIES})
+message("BLAS information:") 
+message("  BLAS libraries: ${BLAS_LIBRARIES} ${BLAS95_LIBRARIES}") 
+
+find_package(OpenCV 3.1 COMPONENTS core imgproc calib3d highgui videoio REQUIRED cudaoptflow)
+message("Found OpenCV ${OpenCV_VERSION}") 
+message("  OpenCV_INCLUDE_DIRS: ${OpenCV_INCLUDE_DIRS}") 
+
 
 if(OpenCV_CUDA_VERSION)
     option(WITH_CUDA_OPENCV_SUPPORT "Build with CUDA OpenCV support" ON)
@@ -26,10 +33,17 @@ endif()
 find_package(Eigen3 REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIRS})
 
+# Include Boost as an imported target
 find_package(Boost REQUIRED COMPONENTS program_options)
+add_library(boost INTERFACE IMPORTED)
+set_property(TARGET boost PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${Boost_INCLUDE_DIRS})
+set_property(TARGET boost PROPERTY INTERFACE_LINK_LIBRARIES ${Boost_LIBRARIES})
+message("Found Boost ${Boost_VERSION}") 
+
 
 find_package(yaml-cpp REQUIRED)
 include_directories(${YAML_CPP_INCLUDE_DIRS})
+
 
 find_package(Caffe)
 include_directories(${Caffe_DIR}/../../include)
@@ -40,18 +54,26 @@ if(${WITH_CAFFE_SUPPORT} AND ${Caffe_FOUND})
     message(STATUS "Found Caffe at ${Caffe_DIR} -- building with support for gaze estimation")
     add_definitions(-DWITH_CAFFE)
     option(WITH_OPENPOSE "Build with OpenPose support" OFF)
+    include_directories(${Caffe_INCLUDE_DIRS})
 else()
     message(STATUS "Caffe not enabled/not found -- pose detection will not be available")
 endif()
 
 
 if(${WITH_OPENPOSE})
-    include_directories(${Caffe_INCLUDE_DIRS})
-
     find_package(PkgConfig REQUIRED)
     pkg_search_module(OPENPOSE REQUIRED openpose)
     include_directories(${OPENPOSE_INCLUDE_DIRS})
     link_directories(${OPENPOSE_LIBRARY_DIRS})
+    add_definitions(-DWITH_OPENPOSE)
+endif()
+
+
+option(WITH_OPENFACE "Build with OpenFace support" OFF)
+
+if(${WITH_OPENFACE})
+    find_package(OpenFace REQUIRED)
+    message(STATUS "Found OpenFace version: ${OpenFace_VERSION}")
 endif()
 
 find_package(catkin REQUIRED COMPONENTS 
@@ -88,32 +110,40 @@ if(${WITH_OPENPOSE})
     )
 endif()
 
+if(${WITH_OPENFACE})
+    add_executable(extract_gaze src/head_pose_openface.cpp)
+    target_link_libraries(extract_gaze opencv_videoio OpenFace::GazeAnalyser ${catkin_LIBRARIES})
+
+    install(TARGETS extract_gaze
+        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+    )
+endif()
+
 add_executable(pose_analysis src/pose_analysis.cpp)
 target_link_libraries(pose_analysis ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})
 
 add_executable(face_detection src/face_detection.cpp)
-target_link_libraries(face_detection ${Boost_LIBRARIES})
+target_link_libraries(face_detection boost)
 
 
 add_executable(check_pose_data src/check_pose_data.cpp)
-target_link_libraries(check_pose_data ${Boost_LIBRARIES} ${YAML_CPP_LIBRARIES})
+target_link_libraries(check_pose_data boost ${YAML_CPP_LIBRARIES})
 
 
-add_executable(replay_with_poses src/replay_with_poses.cpp src/gaze_features.cpp src/head_pose_estimator.cpp)
-target_link_libraries(replay_with_poses ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})
-
-add_executable(prepare_visual_tracking_dataset src/prepare_visual_tracking_dataset.cpp src/gaze_features.cpp)
-target_link_libraries(prepare_visual_tracking_dataset ${catkin_LIBRARIES})
+#add_executable(prepare_visual_tracking_dataset src/prepare_visual_tracking_dataset.cpp src/gaze_features.cpp)
+#target_link_libraries(prepare_visual_tracking_dataset ${Caffe_LIBRARIES} ${catkin_LIBRARIES})
 
 #install(TARGETS mutual_gaze_segmentation extract_poses
-install(TARGETS replay_with_poses
-    ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-    LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-    RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
+#add_executable(replay_with_poses src/replay_with_poses.cpp src/gaze_features.cpp src/head_pose_estimator.cpp)
+#target_link_libraries(replay_with_poses  ${OpenCV_LIBRARIES} ${catkin_LIBRARIES} ${Caffe_LIBRARIES})
+#install(TARGETS replay_with_poses
+#    ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+#    LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+#    RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+#)
 
 add_executable(optical_flow src/optical_flow.cpp)
-target_link_libraries(optical_flow ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})
+target_link_libraries(optical_flow ${OpenCV_LIBS} ${catkin_LIBRARIES})
 
 add_executable(vad src/vad.cpp)
 target_link_libraries(vad ${catkin_LIBRARIES} ${YAML_CPP_LIBRARIES})

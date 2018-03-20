@@ -1,4 +1,5 @@
-#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
 
 #include <dlib/image_processing/frontal_face_detector.h>
 
@@ -8,9 +9,13 @@
 
 #include <boost/program_options.hpp>
 
+#define STR_EXPAND(tok) #tok
+#define STR(tok) STR_EXPAND(tok)
+
+
 namespace po = boost::program_options;
 using namespace std;
-using namespace cv2;
+using namespace cv;
 
 // focal lengths
 const double FX = 700;
@@ -85,10 +90,10 @@ int main (int argc, char **argv)
 
         if (frame.empty()) break;
 
-        Mat greyscale_image;
+        Mat grayscale_image;
         // Making sure the image is in uchar grayscale
         //cv::Mat_<uchar> grayscale_image = image_reader.GetGrayFrame();
-        cvtColor(frame, greyscale_image, CV_BGR2GRAY);
+        cvtColor(frame, grayscale_image, CV_BGR2GRAY);
 
         // Detect faces in an image
         vector<cv::Rect_<double> > face_detections;

@@ -1,4 +1,5 @@
 #include <chrono> // `std::chrono::` functions and classes, e.g. std::chrono::milliseconds
+#include <tuple>
 
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
@@ -37,34 +38,68 @@ const string TOPIC ("camera_purple/rgb/image_raw/compressed");
 
 const size_t NB_LANDMARKS = 68; // discard the pupils (indices 68 and 69)
 
+// these 2 heuristic helps with selecting the 'right' head if more than 1 face is visible.
+// only the one whose height (in px) between the menton and the sellion is within these
+// bounds is kept.
+const int MIN_HEAD_HEIGHT = 50;
+const int MAX_HEAD_HEIGHT = 150;
+
 /**
  * Returns the facial landmarks previously detected with OpenPose as a list [x1, x2...,xn,y1...yn]
- * of 2D image coordinates
+ * of 2D image coordinates, followed by the left pupil and the right pupil,
+ * follow by the average of landmark detection confidence.
  */
-Mat_<double> readFaceLandmarks(cv::Size image_size, const json& face) {
+tuple<Mat_<double>, Point2f, Point2f, float> readFaceLandmarks(cv::Size
+        image_size, const json& face) {
 
     Mat_<double> landmarks(NB_LANDMARKS * 2, 1);
+    Point2f l_pupil;
+    Point2f r_pupil;
 
-    if (face.is_null()) return landmarks;
+    if (face.is_null()) return {landmarks, l_pupil, r_pupil, 0};
 
     auto w = image_size.width;
     auto h = image_size.height;
 
-    // TODO: if more than one face, select the best one (closest to center or right size)
-    int face_idx = 1;
+    auto nb_faces = face.size();
+    float total_confidence;
 
-    for(size_t idx = 0; idx < NB_LANDMARKS; idx++) {
+    for (size_t face_idx = 1; face_idx <= nb_faces; face_idx++) { // face indicies start at 1!
 
-        float confidence = face[to_string(face_idx)][idx][2].get<float>();
+        total_confidence = 0;
 
-        auto x = w*face[to_string(face_idx)][idx][0].get<float>();
-        auto y = h*face[to_string(face_idx)][idx][1].get<float>();
+        for(size_t idx = 0; idx < NB_LANDMARKS; idx++) {
 
-        landmarks.at<double>(idx) = x;
-        landmarks.at<double>(idx + NB_LANDMARKS) = y;
+            float confidence = face[to_string(face_idx)][idx][2].get<float>();
+            total_confidence += confidence;
+
+            auto x = w*face[to_string(face_idx)][idx][0].get<float>();
+            auto y = h*face[to_string(face_idx)][idx][1].get<float>();
+
+            landmarks.at<double>(idx) = x;
+            landmarks.at<double>(idx + NB_LANDMARKS) = y;
+        }
+
+        auto x = w*face[to_string(face_idx)][68][0].get<float>();
+        auto y = h*face[to_string(face_idx)][68][1].get<float>();
+        l_pupil = Point2f(x, y);
+
+        x = w*face[to_string(face_idx)][69][0].get<float>();
+        y = h*face[to_string(face_idx)][69][1].get<float>();
+        r_pupil = Point2f(x, y);
+
+        // face_height is the distance (in px) between the menton and the sellion
+        Point2f menton(landmarks.at<double>(8), landmarks.at<double>(8 + NB_LANDMARKS));
+        Point2f sellion(landmarks.at<double>(27), landmarks.at<double>(27 + NB_LANDMARKS));
+        auto face_height = cv::norm(menton-sellion);
+
+        // if we have more than one face, and the current face matches our head size heuristic,
+        // use that
+        if (nb_faces > 1 && (face_height > MIN_HEAD_HEIGHT && face_height < MAX_HEAD_HEIGHT)) break;
     }
 
-    return landmarks;
+
+    return {landmarks, l_pupil, r_pupil, total_confidence/NB_LANDMARKS};
 }
 
 int main (int argc, char **argv)
@@ -102,7 +137,7 @@ int main (int argc, char **argv)
     }
 
     if (!vm.count("path")) {
-        cerr << "You must provide a path to the video to process.\n";
+        cerr << "You must provide a path to the experiment to process.\n";
         return 1;
     }
 
@@ -119,8 +154,6 @@ int main (int argc, char **argv)
 
     cerr << "done (took " << std::chrono::duration_cast<std::chrono::seconds>(elapsed).count() << "s)" << endl << endl;
     /////////////////////////////////////////////////////////////
-
-
 
 
     Utilities::Visualizer visualizer(true, false, false);
@@ -167,11 +200,7 @@ int main (int argc, char **argv)
 
         cout << "\x1b[FDone " << percent << "% (" << frame_idx << "/" << (int)nb_frames_video << " frames, " << std::fixed << std::setprecision(1) << fps << " fps)" << endl;
 
-
-        
         Mat grayscale_image;
-        // Making sure the image is in uchar grayscale
-        //cv::Mat_<uchar> grayscale_image = image_reader.GetGrayFrame();
         cvtColor(frame, grayscale_image, CV_BGR2GRAY);
 
         if(!model_initialized) {
@@ -184,17 +213,35 @@ int main (int argc, char **argv)
                 continue;
             }
         }
-        //bool success = LandmarkDetector::DetectLandmarksInVideo(grayscale_image, face_model, det_parameters);
-        //if (!success) {
-        //    cout << "\t\t\t\t\t\t\t\t\tFailed to detect landmark on frame " << frame_idx << endl;
-        //    continue;
-        //}
 
         // read landmarks from pre-recorded OpenPose JSON file
-        auto landmarks = readFaceLandmarks(frame.size(), poses[TOPIC]["frames"][frame_idx]["faces"]);
-        face_model.detected_landmarks = landmarks;
-        face_model.detection_certainty = 1.0;
+        Mat_<double> landmarks;
+        Point2f l_pupil;
+        Point2f r_pupil;
+        float confidence;
 
+        std::tie(landmarks, l_pupil, r_pupil, confidence) = readFaceLandmarks(frame.size(), poses[TOPIC]["frames"][frame_idx]["faces"]);
+        face_model.detected_landmarks = landmarks;
+        face_model.detection_certainty = confidence;
+
+        cout << confidence << endl << endl;
+
+        // overwrite OpenFace's eye detector landmark.
+        // This is a hack: unlike OpenFace, OpenPose does detect directly the pupil.
+        // OpenFace replace pupil detection by averaging the eye contour.
+        // We trick OpenFace by providing an eye contour made exclusively of the pupil
+        // position.
+        Mat_<double> l_eye(28*2,1), r_eye(28*2,1);
+        for (size_t i = 0; i < 28; i++) {
+            l_eye.at<double>(i) = l_pupil.x;
+            r_eye.at<double>(i) = r_pupil.x;
+            l_eye.at<double>(i+28) = l_pupil.y;
+            r_eye.at<double>(i+28) = r_pupil.y;
+        }
+        face_model.hierarchical_models[1].detected_landmarks = l_eye; // left eye
+        face_model.hierarchical_models[1].detection_certainty = confidence;
+        face_model.hierarchical_models[2].detected_landmarks = r_eye; // left eye
+        face_model.hierarchical_models[2].detection_certainty = confidence;
 
         // Estimate head pose and eye gaze
         Vec6d pose_estimate = LandmarkDetector::GetPose(face_model, FX, FY, CX, CY);
@@ -210,28 +257,20 @@ int main (int argc, char **argv)
             GazeAnalysis::EstimateGaze(face_model, gaze_direction1, FX, FY, CX, CY, false);
             gaze_angle = GazeAnalysis::GetGazeAngle(gaze_direction0, gaze_direction1);
         }
-        
+
+        // Aligned face
         //cv::Mat sim_warped_img;
         //face_analyser.AddNextFrame(frame, face_model.detected_landmarks, face_model.detection_success, timestamp);
-
         //face_analyser.GetLatestAlignedFace(sim_warped_img);
+        //imshow("Aligned face", sim_warped_img);
 
         visualizer.SetImage(frame, FX, FY, CX, CY);
-        //visualizer.SetObservationFaceAlign(sim_warped_img);
         visualizer.SetObservationPose(pose_estimate, face_model.detection_certainty);
         visualizer.SetObservationLandmarks(face_model.detected_landmarks, face_model.detection_certainty, face_model.GetVisibilities());
         visualizer.SetObservationGaze(gaze_direction0, gaze_direction1, LandmarkDetector::CalculateAllEyeLandmarks(face_model), LandmarkDetector::Calculate3DEyeLandmarks(face_model, FX, FY, CX, CY), face_model.detection_certainty);
         //visualizer.SetObservationActionUnits(face_analyser.GetCurrentAUsReg(), face_analyser.GetCurrentAUsClass());
 
-        // detect key presses
-        //char character_press = visualizer.ShowObservation();
-
-        // quit processing the current sequence (useful when in Webcam mode)
-        //if (character_press == 'q')
-        //{
-        //    break;
-        //}
-        imshow("toto", visualizer.GetVisImage());
+        imshow("Gaze", visualizer.GetVisImage());
         waitKey(10);
 
 }

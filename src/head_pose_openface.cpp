@@ -35,7 +35,7 @@ const string POSES_FILE ("freeplay.poses.json");
 const string VIDEO_FILE ("videos/camera_purple_raw.mkv");
 const string TOPIC ("camera_purple/rgb/image_raw/compressed");
 
-const size_t NB_LANDMARKS = 70;
+const size_t NB_LANDMARKS = 68; // discard the pupils (indices 68 and 69)
 
 /**
  * Returns the facial landmarks previously detected with OpenPose as a list [x1, x2...,xn,y1...yn]
@@ -44,6 +44,8 @@ const size_t NB_LANDMARKS = 70;
 Mat_<double> readFaceLandmarks(cv::Size image_size, const json& face) {
 
     Mat_<double> landmarks(NB_LANDMARKS * 2, 1);
+
+    if (face.is_null()) return landmarks;
 
     auto w = image_size.width;
     auto h = image_size.height;
@@ -139,6 +141,8 @@ int main (int argc, char **argv)
     face_analysis_params.OptimizeForImages();
     FaceAnalysis::FaceAnalyser face_analyser(face_analysis_params);
 
+    bool model_initialized = false;
+
     size_t frame_idx;
     start = std::chrono::system_clock::now();
 
@@ -170,17 +174,26 @@ int main (int argc, char **argv)
         //cv::Mat_<uchar> grayscale_image = image_reader.GetGrayFrame();
         cvtColor(frame, grayscale_image, CV_BGR2GRAY);
 
-        //bool success = LandmarkDetector::DetectLandmarksInImage(grayscale_image, face_model, det_parameters);
-        bool success = LandmarkDetector::DetectLandmarksInVideo(grayscale_image, face_model, det_parameters);
+        if(!model_initialized) {
+            bool success = LandmarkDetector::DetectLandmarksInImage(grayscale_image, face_model, det_parameters);
+            if(success) {
+                cout << "Face model initialized. Continuing with pre-detected OpenPose facial landmarks" << endl;
+                model_initialized = true;
+            }
+            else {
+                continue;
+            }
+        }
+        //bool success = LandmarkDetector::DetectLandmarksInVideo(grayscale_image, face_model, det_parameters);
         //if (!success) {
         //    cout << "\t\t\t\t\t\t\t\t\tFailed to detect landmark on frame " << frame_idx << endl;
         //    continue;
         //}
 
-        //auto landmarks = readFaceLandmarks(frame.size(), poses[TOPIC]["frames"][frame_idx]["faces"]);
-        // overwrite OpenFace detected landmarks with OpenPose ones
-        //face_model.detected_landmarks = landmarks;
-        //face_model.detection_certainty = 1.0;
+        // read landmarks from pre-recorded OpenPose JSON file
+        auto landmarks = readFaceLandmarks(frame.size(), poses[TOPIC]["frames"][frame_idx]["faces"]);
+        face_model.detected_landmarks = landmarks;
+        face_model.detection_certainty = 1.0;
 
 
         // Estimate head pose and eye gaze

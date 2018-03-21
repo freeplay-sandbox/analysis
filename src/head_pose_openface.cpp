@@ -1,5 +1,7 @@
 #include <chrono> // `std::chrono::` functions and classes, e.g. std::chrono::milliseconds
 #include <tuple>
+#include <fstream>
+#include <sstream>
 
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
@@ -40,6 +42,7 @@ const string PURPLE_TOPIC ("camera_purple/rgb/image_raw/compressed");
 const string YELLOW_VIDEO_FILE ("videos/camera_yellow_raw.mkv");
 const string YELLOW_TOPIC ("camera_yellow/rgb/image_raw/compressed");
 
+const float CONFIDENCE_THRESHOLD = 0.4; // below this landmark detection threshold, do not attempt head pose
 
 const size_t NB_LANDMARKS = 68; // discard the pupils (indices 68 and 69)
 
@@ -61,7 +64,9 @@ tuple<Mat_<double>, Point2f, Point2f, float> readFaceLandmarks(cv::Size
     Point2f l_pupil;
     Point2f r_pupil;
 
-    if (face.is_null()) return {landmarks, l_pupil, r_pupil, 0};
+    if (face.type() != json::value_t::object || face.is_null()) {
+        return {landmarks, l_pupil, r_pupil, 0};
+    }
 
     auto w = image_size.width;
     auto h = image_size.height;
@@ -107,7 +112,7 @@ tuple<Mat_<double>, Point2f, Point2f, float> readFaceLandmarks(cv::Size
     return {landmarks, l_pupil, r_pupil, total_confidence/NB_LANDMARKS};
 }
 
-void write_csv_header(std::ofstream output_file) {
+void write_csv_header(ofstream& output_file) {
 
     if (!output_file.is_open())
     {
@@ -121,7 +126,7 @@ void write_csv_header(std::ofstream output_file) {
                    "purple_gaze.x, purple_gaze.y, purple_gaze.z, "
                    "purple_AU01, purple_AU02, purple_AU04, purple_AU05, purple_AU06, purple_AU07, "
                    "purple_AU09, purple_AU10, purple_AU12, purple_AU14, purple_AU15, purple_AU17, "
-                   "purple_AU20, purple_AU23, purple_AU25, purple_AU26, purple_AU45";
+                   "purple_AU20, purple_AU23, purple_AU25, purple_AU26, purple_AU45,";
 
     output_file << "yellow_confidence, "
                    "yellow_pose.x, yellow_pose.y, yellow_pose.z, yellow_pose.rx, yellow_pose.ry, yellow_pose.rz, "
@@ -133,12 +138,58 @@ void write_csv_header(std::ofstream output_file) {
     output_file << endl;
 }
 
-void write_csv_line(std::ofstream output_file,
-                    int frame_num, long timestamp, double confidence, 
-                    cv::Vec6d& pose_estimate,
-                    const cv::Point3f& gazeDirection,
-                    const std::vector<std::pair<std::string, double> >& au_intensities,
-                    const std::vector<std::pair<std::string, double> >& au_occurences) {
+std::stringstream face_csv_line( double confidence = 0., 
+                    const Vec6d& pose_estimate = {},
+                    const Point3f& gazeDirection = {},
+                    const vector<pair<string, double> >& au_intensities = {},
+                    const vector<pair<string, double> >& au_occurences = {})
+{
+    stringstream line;
+
+    line << std::setprecision(3);
+    line << confidence;
+
+    // pose
+    line << std::setprecision(4);
+    line << "," << pose_estimate[0] << "," << pose_estimate[1] << "," << pose_estimate[2];
+    line << std::setprecision(4);
+    line << "," << pose_estimate[3] << "," << pose_estimate[4] << "," << pose_estimate[5];
+
+    // gaze
+    line << std::setprecision(4);
+    line << "," << gazeDirection.x << "," << gazeDirection.y << "," << gazeDirection.z;
+
+    // Action Units
+    
+    line << std::setprecision(3);
+    std::map<std::string, std::pair<bool, double>> aus;
+
+    if(au_intensities.empty()) {
+        for (auto i = 0; i < 17; i++) line <<",0"; // 17 AUs
+    }
+    // first, prepare a mapping "AU name" -> { present, intensity }
+    for (size_t idx = 0; idx < au_intensities.size(); idx++) {
+        aus[au_intensities[idx].first] = std::make_pair(au_occurences[idx].second != 0, au_intensities[idx].second);
+    }
+
+    for (auto& au : aus) {
+        bool present = au.second.first;
+        double intensity = au.second.second;
+        if (present) {
+            line << "," << intensity;
+        }
+        else {
+            line << ",0";
+        }
+    }
+
+    return line;
+}
+
+void write_csv_line(ofstream& output_file,
+                    int frame_num, double timestamp,
+                    stringstream& purple_face,
+                    stringstream& yellow_face) {
 
     if (!output_file.is_open())
     {
@@ -150,44 +201,118 @@ void write_csv_line(std::ofstream output_file,
     output_file << std::fixed;
     output_file << std::noshowpoint;
 
-    output_file << frame_num << ", " << timestamp;
-    output_file << std::setprecision(2);
-    output_file << ", " << confidence;
+    output_file << frame_num << ", ";
+    output_file << std::setprecision(15);
+    output_file <<  timestamp << ", ";
 
-    // pose
-    output_file << std::setprecision(1);
-    output_file << ", " << pose_estimate[0] << ", " << pose_estimate[1] << ", " << pose_estimate[2];
-    output_file << std::setprecision(3);
-    output_file << ", " << pose_estimate[3] << ", " << pose_estimate[4] << ", " << pose_estimate[5];
+    output_file << purple_face.str() << ", " << yellow_face.str();
 
-    // gaze
-    output_file << std::setprecision(3);
-    output_file << ", " << gazeDirection.x << ", " << gazeDirection.y << ", " << gazeDirection.z;
-
-    // Action Units
-    
-    output_file << std::setprecision(1);
-    std::map<std::string, std::pair<bool, double>> aus;
-
-    // first, prepare a mapping "AU name" -> { present, intensity }
-    for (size_t idx = 0; idx < au_intensities.size(); idx++) {
-        aus[au_intensities[idx].first] = std::make_pair(au_occurences[idx].second != 0, au_intensities[idx].second);
-    }
-
-    for (auto& au : aus) {
-        bool present = au.second.first;
-        double intensity = au.second.second;
-        if (present) {
-            output_file << ", " << intensity;
-        }
-        else {
-            output_file << ", 0";
-        }
-    }
     output_file << std::endl;
 }
 
+stringstream process_frame(size_t frame_idx,
+                           double timestamp,
+                           const json& poses,
+                           const string& topic,
+                           FaceAnalysis::FaceAnalyser& face_analyser,
+                           LandmarkDetector::CLNF& face_model, 
+                           LandmarkDetector::FaceModelParameters& det_parameters,
+                           VideoCapture& capture,
+                           bool& model_initialized, 
+                           const bool debug
+                            )
+{
 
+    Mat frame;
+
+    capture >> frame;
+    Mat grayscale_image;
+    cvtColor(frame, grayscale_image, CV_BGR2GRAY);
+
+
+    if(!model_initialized) {
+        bool success = LandmarkDetector::DetectLandmarksInImage(grayscale_image, face_model, det_parameters);
+        if(success) {
+            cout << "Face model initialized for " << topic << endl << endl;
+            model_initialized = true;
+        }
+    }
+
+    if(!model_initialized) {
+        return face_csv_line();
+    }
+
+    // read landmarks from pre-recorded OpenPose JSON file
+    Mat_<double> landmarks;
+    Point2f l_pupil;
+    Point2f r_pupil;
+    float confidence;
+
+    std::tie(landmarks, l_pupil, r_pupil, confidence) = readFaceLandmarks({960, 540}, poses[topic]["frames"][frame_idx]["faces"]);
+    face_model.detected_landmarks = landmarks;
+    face_model.detection_success = (confidence != 0);
+    face_model.detection_certainty = confidence;
+
+    // overwrite OpenFace's eye detector landmark.
+    // This is a hack: unlike OpenFace, OpenPose does detect directly the pupil.
+    // OpenFace replace pupil detection by averaging the eye contour.
+    // We trick OpenFace by providing an eye contour made exclusively of the pupil
+    // position.
+    Mat_<double> l_eye(28*2,1), r_eye(28*2,1);
+    for (size_t i = 0; i < 28; i++) {
+        l_eye.at<double>(i) = l_pupil.x;
+        r_eye.at<double>(i) = r_pupil.x;
+        l_eye.at<double>(i+28) = l_pupil.y;
+        r_eye.at<double>(i+28) = r_pupil.y;
+    }
+    face_model.hierarchical_models[1].detected_landmarks = l_eye; // left eye
+    face_model.hierarchical_models[1].detection_certainty = confidence;
+    face_model.hierarchical_models[2].detected_landmarks = r_eye; // left eye
+    face_model.hierarchical_models[2].detection_certainty = confidence;
+
+    // Estimate head pose and eye gaze
+    Vec6d pose_estimate(0,0,0,0,0,0);
+    
+    if(confidence > CONFIDENCE_THRESHOLD) {
+        pose_estimate = LandmarkDetector::GetPose(face_model, FX, FY, CX, CY);
+    }
+
+    // Gaze tracking, absolute gaze direction
+    Point3f gaze_direction0(0, 0, 0);
+    Point3f gaze_direction1(0, 0, 0);
+    Vec2d gaze_angle(0, 0);
+
+    if(confidence > CONFIDENCE_THRESHOLD) {
+        GazeAnalysis::EstimateGaze(face_model, gaze_direction0, FX, FY, CX, CY, true);
+        GazeAnalysis::EstimateGaze(face_model, gaze_direction1, FX, FY, CX, CY, false);
+        //gaze_angle = GazeAnalysis::GetGazeAngle(gaze_direction0, gaze_direction1);
+    }
+
+    face_analyser.AddNextFrame(grayscale_image, face_model.detected_landmarks, face_model.detection_success, timestamp);
+
+    if(debug) {
+        // Aligned face
+        //cv::Mat sim_warped_img;
+        //face_analyser.GetLatestAlignedFace(sim_warped_img);
+        //imshow("Aligned face", sim_warped_img);
+
+        Utilities::Visualizer visualizer(true, false, false);
+
+        visualizer.SetImage(frame, FX, FY, CX, CY);
+        visualizer.SetObservationPose(pose_estimate, face_model.detection_certainty);
+        visualizer.SetObservationLandmarks(face_model.detected_landmarks, face_model.detection_certainty, face_model.GetVisibilities());
+        visualizer.SetObservationGaze(gaze_direction0, gaze_direction1, LandmarkDetector::CalculateAllEyeLandmarks(face_model), LandmarkDetector::Calculate3DEyeLandmarks(face_model, FX, FY, CX, CY), face_model.detection_certainty);
+        //visualizer.SetObservationActionUnits(face_analyser.GetCurrentAUsReg(), face_analyser.GetCurrentAUsClass());
+
+        imshow("Gaze for " + topic, visualizer.GetVisImage());
+        waitKey(10);
+    }
+
+    return face_csv_line(confidence, 
+                         pose_estimate,
+                         (gaze_direction0 + gaze_direction1)/2,
+                         face_analyser.GetCurrentAUsReg(), face_analyser.GetCurrentAUsClass());
+}
 
 
 int main (int argc, char **argv)
@@ -200,6 +325,7 @@ int main (int argc, char **argv)
     desc.add_options()
         ("help,h", "produces help message")
         ("version,v", "shows version and exits")
+        ("debug,d", "display face debug informations")
 //        ("models", po::value<string>()->default_value("models/"), "path to OpenPose models")
 //        ("bag", po::value<string>()->default_value("freeplay"), "Bag file, without the '.bag' extension")
         ("path", po::value<string>(), "path to the source video")
@@ -224,11 +350,15 @@ int main (int argc, char **argv)
         return 0;
     }
 
+    bool debug = (vm.count("debug") != 0);
+
     if (!vm.count("path")) {
         cerr << "You must provide a path to the experiment to process.\n";
         return 1;
     }
 
+    ofstream csv_output("head_pose.csv", ios::out);
+    write_csv_header(csv_output);
 
     YAML::Node experiment = YAML::LoadFile(vm["path"].as<string>() + "/" + YAML_EXPERIMENT_FILE);
 
@@ -283,19 +413,10 @@ int main (int argc, char **argv)
         return -1;
     }
 
-    cout << "Found a common start timestamp (" << start_timestamp << "). Purple stream must skip " << purple_frame_start_idx << " frames, yellow stream " << yellow_frame_start_idx << "frames." <<endl;
+    cout << "Found a common start timestamp (" << std::setprecision(15) << start_timestamp << "). Purple stream must skip " << purple_frame_start_idx << " frames, yellow stream " << yellow_frame_start_idx << " frames." <<endl;
 
     VideoCapture purple_capture(vm["path"].as<string>() + "/" + PURPLE_VIDEO_FILE);
     VideoCapture yellow_capture(vm["path"].as<string>() + "/" + YELLOW_VIDEO_FILE);
-
-    // skipping needed frames to align the 2 video streams
-    Mat frame;
-    for (size_t i; i < purple_frame_start_idx; i++) {
-        purple_capture >> frame;
-    }
-    for (size_t i; i < yellow_frame_start_idx; i++) {
-        yellow_capture >> frame;
-    }
 
 
     auto nb_purple_frames = poses[PURPLE_TOPIC]["frames"].size() - purple_frame_start_idx;
@@ -310,21 +431,81 @@ int main (int argc, char **argv)
     cout << nb_frames_video << " frames to process." << endl;
 
 
+    ///////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////
+    //                                     MODEL LOADING AND INITIALIZATION 
+    ///////////////////////////////////////////////////////////////////////////////////////////
+    
 
-    Utilities::Visualizer visualizer(true, false, false);
+
     // Load the models if images found
-    LandmarkDetector::FaceModelParameters det_parameters;
+    LandmarkDetector::FaceModelParameters purple_det_parameters;
+    LandmarkDetector::FaceModelParameters yellow_det_parameters;
 
     // The modules that are being used for tracking
-    cout << "\n\n######################\nLoading the models from " << det_parameters.model_location << endl;
-    LandmarkDetector::CLNF face_model(det_parameters.model_location);
+    cout << "\n\n######################\nLoading the models from " << purple_det_parameters.model_location << endl;
+    LandmarkDetector::CLNF purple_face_model(purple_det_parameters.model_location);
+    LandmarkDetector::CLNF yellow_face_model(yellow_det_parameters.model_location);
 
     // Load facial feature extractor and AU analyser (make sure it is static)
-    FaceAnalysis::FaceAnalyserParameters face_analysis_params;
-    face_analysis_params.OptimizeForImages();
-    FaceAnalysis::FaceAnalyser face_analyser(face_analysis_params);
+    FaceAnalysis::FaceAnalyserParameters purple_face_analysis_params;
+    purple_face_analysis_params.OptimizeForImages();
+    FaceAnalysis::FaceAnalyser purple_face_analyser(purple_face_analysis_params);
 
-    bool model_initialized = false;
+    FaceAnalysis::FaceAnalyserParameters yellow_face_analysis_params;
+    yellow_face_analysis_params.OptimizeForImages();
+    FaceAnalysis::FaceAnalyser yellow_face_analyser(yellow_face_analysis_params);
+
+    
+    cout << "\n##########################################" << endl;
+    cout << "Models initialization" << endl << endl;
+
+    bool purple_model_initialized = false;
+    bool yellow_model_initialized = false;
+
+    // process the first frames of the video, until a face is detected,
+    // to initialize OpenFace parameters
+    
+    cout << "Initializing face model for purple child..." << endl << endl;
+    while(!purple_model_initialized) {
+
+        process_frame(0,
+                      0,
+                      poses,
+                      PURPLE_TOPIC,
+                      purple_face_analyser,
+                      purple_face_model,
+                      purple_det_parameters,
+                      purple_capture,
+                      purple_model_initialized,
+                      false);
+    }
+
+    cout << "Initializing face model for yellow child..." << endl << endl;
+
+    while(!yellow_model_initialized) {
+
+        process_frame(0,
+                      0,
+                      poses,
+                      YELLOW_TOPIC,
+                      yellow_face_analyser,
+                      yellow_face_model,
+                      yellow_det_parameters,
+                      yellow_capture,
+                      yellow_model_initialized,
+                      false);
+    }
+
+    // reset video to their begining, skipping frames as needed to synchronise the 2 streams
+    purple_capture.set(CV_CAP_PROP_POS_FRAMES, purple_frame_start_idx);
+    yellow_capture.set(CV_CAP_PROP_POS_FRAMES, yellow_frame_start_idx);
+
+
+    ///////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////
+    //                                      MAIN LOOP
+    ///////////////////////////////////////////////////////////////////////////////////////////
 
     start = std::chrono::system_clock::now();
 
@@ -332,20 +513,12 @@ int main (int argc, char **argv)
 
     double timestamp;
 
-    size_t frame_idx = purple_frame_start_idx;
+    size_t frame_idx = 0;
 
-    for(;;)
+    while(frame_idx < nb_frames_video)
     {
-        timestamp = poses[PURPLE_TOPIC]["frames"][frame_idx]["ts"].get<double>();
+        timestamp = poses[PURPLE_TOPIC]["frames"][frame_idx + purple_frame_start_idx]["ts"].get<double>();
 
-        Mat frame;
-        purple_capture >> frame; 
-        frame_idx += 1;
-
-        if (frame.empty()) {
-            cout << "End of video."<< endl;
-            break;
-        }
 
         int percent = frame_idx * 100 / nb_frames_video;
         auto intermediate = std::chrono::system_clock::now();
@@ -353,79 +526,33 @@ int main (int argc, char **argv)
 
         cout << "\x1b[FDone " << percent << "% (" << frame_idx << "/" << (int)nb_frames_video << " frames, " << std::fixed << std::setprecision(1) << fps << " fps)" << endl;
 
-        Mat grayscale_image;
-        cvtColor(frame, grayscale_image, CV_BGR2GRAY);
+        auto purple_face = process_frame(frame_idx + purple_frame_start_idx,
+                                         timestamp,
+                                         poses,
+                                         PURPLE_TOPIC,
+                                         purple_face_analyser,
+                                         purple_face_model,
+                                         purple_det_parameters,
+                                         purple_capture,
+                                         purple_model_initialized,
+                                         debug);
 
-        if(!model_initialized) {
-            bool success = LandmarkDetector::DetectLandmarksInImage(grayscale_image, face_model, det_parameters);
-            if(success) {
-                cout << "Face model initialized. Continuing with pre-detected OpenPose facial landmarks" << endl << endl;
-                model_initialized = true;
-            }
-            else {
-                continue;
-            }
-        }
+        auto yellow_face = process_frame(frame_idx + yellow_frame_start_idx,
+                                         timestamp,
+                                         poses,
+                                         YELLOW_TOPIC,
+                                         yellow_face_analyser,
+                                         yellow_face_model,
+                                         yellow_det_parameters,
+                                         yellow_capture,
+                                         yellow_model_initialized,
+                                         debug);
 
+        write_csv_line(csv_output, frame_idx, timestamp, purple_face, yellow_face); 
+        frame_idx += 1;
+    }
 
-        // read landmarks from pre-recorded OpenPose JSON file
-        Mat_<double> landmarks;
-        Point2f l_pupil;
-        Point2f r_pupil;
-        float confidence;
-
-        std::tie(landmarks, l_pupil, r_pupil, confidence) = readFaceLandmarks(frame.size(), poses[PURPLE_TOPIC]["frames"][frame_idx]["faces"]);
-        face_model.detected_landmarks = landmarks;
-        face_model.detection_certainty = confidence;
-
-        // overwrite OpenFace's eye detector landmark.
-        // This is a hack: unlike OpenFace, OpenPose does detect directly the pupil.
-        // OpenFace replace pupil detection by averaging the eye contour.
-        // We trick OpenFace by providing an eye contour made exclusively of the pupil
-        // position.
-        Mat_<double> l_eye(28*2,1), r_eye(28*2,1);
-        for (size_t i = 0; i < 28; i++) {
-            l_eye.at<double>(i) = l_pupil.x;
-            r_eye.at<double>(i) = r_pupil.x;
-            l_eye.at<double>(i+28) = l_pupil.y;
-            r_eye.at<double>(i+28) = r_pupil.y;
-        }
-        face_model.hierarchical_models[1].detected_landmarks = l_eye; // left eye
-        face_model.hierarchical_models[1].detection_certainty = confidence;
-        face_model.hierarchical_models[2].detected_landmarks = r_eye; // left eye
-        face_model.hierarchical_models[2].detection_certainty = confidence;
-
-        // Estimate head pose and eye gaze
-        Vec6d pose_estimate = LandmarkDetector::GetPose(face_model, FX, FY, CX, CY);
-
-        // Gaze tracking, absolute gaze direction
-        Point3f gaze_direction0(0, 0, 0);
-        Point3f gaze_direction1(0, 0, 0);
-        Vec2d gaze_angle(0, 0);
-
-        if (face_model.eye_model)
-        {
-            GazeAnalysis::EstimateGaze(face_model, gaze_direction0, FX, FY, CX, CY, true);
-            GazeAnalysis::EstimateGaze(face_model, gaze_direction1, FX, FY, CX, CY, false);
-            gaze_angle = GazeAnalysis::GetGazeAngle(gaze_direction0, gaze_direction1);
-        }
-
-        // Aligned face
-        //cv::Mat sim_warped_img;
-        //face_analyser.AddNextFrame(frame, face_model.detected_landmarks, face_model.detection_success, timestamp);
-        //face_analyser.GetLatestAlignedFace(sim_warped_img);
-        //imshow("Aligned face", sim_warped_img);
-
-        //visualizer.SetImage(frame, FX, FY, CX, CY);
-        //visualizer.SetObservationPose(pose_estimate, face_model.detection_certainty);
-        //visualizer.SetObservationLandmarks(face_model.detected_landmarks, face_model.detection_certainty, face_model.GetVisibilities());
-        //visualizer.SetObservationGaze(gaze_direction0, gaze_direction1, LandmarkDetector::CalculateAllEyeLandmarks(face_model), LandmarkDetector::Calculate3DEyeLandmarks(face_model, FX, FY, CX, CY), face_model.detection_certainty);
-        //visualizer.SetObservationActionUnits(face_analyser.GetCurrentAUsReg(), face_analyser.GetCurrentAUsClass());
-
-        //imshow("Gaze", visualizer.GetVisImage());
-        //waitKey(10);
-
-}
+    csv_output.close();
 
     return 0;
 }

@@ -112,7 +112,7 @@ endif()
 
 if(${WITH_OPENFACE})
     add_executable(extract_gaze src/head_pose_openface.cpp)
-    target_link_libraries(extract_gaze opencv_videoio OpenFace::GazeAnalyser ${catkin_LIBRARIES})
+    target_link_libraries(extract_gaze opencv_videoio OpenFace::GazeAnalyser ${catkin_LIBRARIES} ${YAML_CPP_LIBRARIES})
 
     install(TARGETS extract_gaze
         RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

@@ -13,6 +13,7 @@
 
 #include <boost/program_options.hpp>
 
+#include <yaml-cpp/yaml.h>
 #include "json.hpp"
 
 #define STR_EXPAND(tok) #tok
@@ -32,9 +33,13 @@ const double FY = 697.811; // extracted from actual ROS bag records
 const double CX = 479.047 ; // extracted from actual ROS bag records
 const double CY = 261.227; // extracted from actual ROS bag records
 
+const string YAML_EXPERIMENT_FILE ("experiment.yaml");
 const string POSES_FILE ("freeplay.poses.json");
-const string VIDEO_FILE ("videos/camera_purple_raw.mkv");
-const string TOPIC ("camera_purple/rgb/image_raw/compressed");
+const string PURPLE_VIDEO_FILE ("videos/camera_purple_raw.mkv");
+const string PURPLE_TOPIC ("camera_purple/rgb/image_raw/compressed");
+const string YELLOW_VIDEO_FILE ("videos/camera_yellow_raw.mkv");
+const string YELLOW_TOPIC ("camera_yellow/rgb/image_raw/compressed");
+
 
 const size_t NB_LANDMARKS = 68; // discard the pupils (indices 68 and 69)
 
@@ -102,6 +107,89 @@ tuple<Mat_<double>, Point2f, Point2f, float> readFaceLandmarks(cv::Size
     return {landmarks, l_pupil, r_pupil, total_confidence/NB_LANDMARKS};
 }
 
+void write_csv_header(std::ofstream output_file) {
+
+    if (!output_file.is_open())
+    {
+        std::cout << "The output CSV file is not open, exiting" << std::endl;
+        exit(1);
+    }
+
+    output_file << "id, timestamp,";
+    output_file << "purple_confidence, "
+                   "purple_pose.x, purple_pose.y, purple_pose.z, purple_pose.rx, purple_pose.ry, purple_pose.rz, "
+                   "purple_gaze.x, purple_gaze.y, purple_gaze.z, "
+                   "purple_AU01, purple_AU02, purple_AU04, purple_AU05, purple_AU06, purple_AU07, "
+                   "purple_AU09, purple_AU10, purple_AU12, purple_AU14, purple_AU15, purple_AU17, "
+                   "purple_AU20, purple_AU23, purple_AU25, purple_AU26, purple_AU45";
+
+    output_file << "yellow_confidence, "
+                   "yellow_pose.x, yellow_pose.y, yellow_pose.z, yellow_pose.rx, yellow_pose.ry, yellow_pose.rz, "
+                   "yellow_gaze.x, yellow_gaze.y, yellow_gaze.z, "
+                   "yellow_AU01, yellow_AU02, yellow_AU04, yellow_AU05, yellow_AU06, yellow_AU07, "
+                   "yellow_AU09, yellow_AU10, yellow_AU12, yellow_AU14, yellow_AU15, yellow_AU17, "
+                   "yellow_AU20, yellow_AU23, yellow_AU25, yellow_AU26, yellow_AU45";
+
+    output_file << endl;
+}
+
+void write_csv_line(std::ofstream output_file,
+                    int frame_num, long timestamp, double confidence, 
+                    cv::Vec6d& pose_estimate,
+                    const cv::Point3f& gazeDirection,
+                    const std::vector<std::pair<std::string, double> >& au_intensities,
+                    const std::vector<std::pair<std::string, double> >& au_occurences) {
+
+    if (!output_file.is_open())
+    {
+        std::cout << "The output CSV file is not open, exiting" << std::endl;
+        exit(1);
+    }
+
+    // Making sure fixed and not scientific notation is used
+    output_file << std::fixed;
+    output_file << std::noshowpoint;
+
+    output_file << frame_num << ", " << timestamp;
+    output_file << std::setprecision(2);
+    output_file << ", " << confidence;
+
+    // pose
+    output_file << std::setprecision(1);
+    output_file << ", " << pose_estimate[0] << ", " << pose_estimate[1] << ", " << pose_estimate[2];
+    output_file << std::setprecision(3);
+    output_file << ", " << pose_estimate[3] << ", " << pose_estimate[4] << ", " << pose_estimate[5];
+
+    // gaze
+    output_file << std::setprecision(3);
+    output_file << ", " << gazeDirection.x << ", " << gazeDirection.y << ", " << gazeDirection.z;
+
+    // Action Units
+    
+    output_file << std::setprecision(1);
+    std::map<std::string, std::pair<bool, double>> aus;
+
+    // first, prepare a mapping "AU name" -> { present, intensity }
+    for (size_t idx = 0; idx < au_intensities.size(); idx++) {
+        aus[au_intensities[idx].first] = std::make_pair(au_occurences[idx].second != 0, au_intensities[idx].second);
+    }
+
+    for (auto& au : aus) {
+        bool present = au.second.first;
+        double intensity = au.second.second;
+        if (present) {
+            output_file << ", " << intensity;
+        }
+        else {
+            output_file << ", 0";
+        }
+    }
+    output_file << std::endl;
+}
+
+
+
+
 int main (int argc, char **argv)
 {
 
@@ -141,6 +229,15 @@ int main (int argc, char **argv)
         return 1;
     }
 
+
+    YAML::Node experiment = YAML::LoadFile(vm["path"].as<string>() + "/" + YAML_EXPERIMENT_FILE);
+
+    bool childchild = (experiment["condition"].as<string>() == "childchild");
+
+    if (!childchild) {
+        cout << "Child-robot experiment. Skipping it for now." << endl;
+    }
+
     //////////////////// LOAD poses.json  //////////////////////
     json poses;
 
@@ -155,18 +252,71 @@ int main (int argc, char **argv)
     cerr << "done (took " << std::chrono::duration_cast<std::chrono::seconds>(elapsed).count() << "s)" << endl << endl;
     /////////////////////////////////////////////////////////////
 
+    // Find the first common timestamp
+    size_t purple_frame_start_idx = 0;
+    size_t yellow_frame_start_idx = 0;
+
+    double start_timestamp = 0;
+    bool found_start_timestamp = false;
+
+    for (const auto& f_p : poses[PURPLE_TOPIC]["frames"]) {
+        auto ts_p = f_p["ts"].get<double>();
+        for (const auto& f_y : poses[YELLOW_TOPIC]["frames"]) {
+            auto ts_y = f_y["ts"].get<double>();
+
+            if (ts_y > ts_p) {break;}
+            if (ts_y == ts_p) {
+                start_timestamp = ts_y;
+                found_start_timestamp = true;
+                break;
+            }
+
+            yellow_frame_start_idx += 1;
+        }
+        
+        if(found_start_timestamp) {break;}
+        purple_frame_start_idx += 1;
+    }
+
+    if (!found_start_timestamp) {
+        cout << "Impossible to find a suitable common timestamp for the 2 video streams! Aborting" << endl;
+        return -1;
+    }
+
+    cout << "Found a common start timestamp (" << start_timestamp << "). Purple stream must skip " << purple_frame_start_idx << " frames, yellow stream " << yellow_frame_start_idx << "frames." <<endl;
+
+    VideoCapture purple_capture(vm["path"].as<string>() + "/" + PURPLE_VIDEO_FILE);
+    VideoCapture yellow_capture(vm["path"].as<string>() + "/" + YELLOW_VIDEO_FILE);
+
+    // skipping needed frames to align the 2 video streams
+    Mat frame;
+    for (size_t i; i < purple_frame_start_idx; i++) {
+        purple_capture >> frame;
+    }
+    for (size_t i; i < yellow_frame_start_idx; i++) {
+        yellow_capture >> frame;
+    }
+
+
+    auto nb_purple_frames = poses[PURPLE_TOPIC]["frames"].size() - purple_frame_start_idx;
+    auto nb_yellow_frames = poses[YELLOW_TOPIC]["frames"].size() - yellow_frame_start_idx;
+
+    if (nb_purple_frames != nb_yellow_frames) {
+        cout << "The two streams do not end at the same time (delta of " << abs(nb_purple_frames-nb_yellow_frames)/30. << " sec). I'll stop after the shortest one." << endl;
+    }
+
+    auto nb_frames_video = min(nb_purple_frames, nb_yellow_frames);
+
+    cout << nb_frames_video << " frames to process." << endl;
+
+
 
     Utilities::Visualizer visualizer(true, false, false);
-
-    VideoCapture capture(vm["path"].as<string>() + "/" + VIDEO_FILE);
-    auto nb_frames_video = capture.get(CV_CAP_PROP_FRAME_COUNT);
-
-
     // Load the models if images found
     LandmarkDetector::FaceModelParameters det_parameters;
 
     // The modules that are being used for tracking
-    cout << "Loading the model " << det_parameters.model_location << endl;
+    cout << "\n\n######################\nLoading the models from " << det_parameters.model_location << endl;
     LandmarkDetector::CLNF face_model(det_parameters.model_location);
 
     // Load facial feature extractor and AU analyser (make sure it is static)
@@ -176,18 +326,21 @@ int main (int argc, char **argv)
 
     bool model_initialized = false;
 
-    size_t frame_idx;
     start = std::chrono::system_clock::now();
 
     cout << "\n\nStarting gaze processing\n\n" << endl;
-    double timestamp = 0;
+
+    double timestamp;
+
+    size_t frame_idx = purple_frame_start_idx;
 
     for(;;)
     {
+        timestamp = poses[PURPLE_TOPIC]["frames"][frame_idx]["ts"].get<double>();
+
         Mat frame;
-        capture >> frame; 
+        purple_capture >> frame; 
         frame_idx += 1;
-        timestamp += 1/30.;
 
         if (frame.empty()) {
             cout << "End of video."<< endl;
@@ -206,7 +359,7 @@ int main (int argc, char **argv)
         if(!model_initialized) {
             bool success = LandmarkDetector::DetectLandmarksInImage(grayscale_image, face_model, det_parameters);
             if(success) {
-                cout << "Face model initialized. Continuing with pre-detected OpenPose facial landmarks" << endl;
+                cout << "Face model initialized. Continuing with pre-detected OpenPose facial landmarks" << endl << endl;
                 model_initialized = true;
             }
             else {
@@ -214,17 +367,16 @@ int main (int argc, char **argv)
             }
         }
 
+
         // read landmarks from pre-recorded OpenPose JSON file
         Mat_<double> landmarks;
         Point2f l_pupil;
         Point2f r_pupil;
         float confidence;
 
-        std::tie(landmarks, l_pupil, r_pupil, confidence) = readFaceLandmarks(frame.size(), poses[TOPIC]["frames"][frame_idx]["faces"]);
+        std::tie(landmarks, l_pupil, r_pupil, confidence) = readFaceLandmarks(frame.size(), poses[PURPLE_TOPIC]["frames"][frame_idx]["faces"]);
         face_model.detected_landmarks = landmarks;
         face_model.detection_certainty = confidence;
-
-        cout << confidence << endl << endl;
 
         // overwrite OpenFace's eye detector landmark.
         // This is a hack: unlike OpenFace, OpenPose does detect directly the pupil.
@@ -264,14 +416,14 @@ int main (int argc, char **argv)
         //face_analyser.GetLatestAlignedFace(sim_warped_img);
         //imshow("Aligned face", sim_warped_img);
 
-        visualizer.SetImage(frame, FX, FY, CX, CY);
-        visualizer.SetObservationPose(pose_estimate, face_model.detection_certainty);
-        visualizer.SetObservationLandmarks(face_model.detected_landmarks, face_model.detection_certainty, face_model.GetVisibilities());
-        visualizer.SetObservationGaze(gaze_direction0, gaze_direction1, LandmarkDetector::CalculateAllEyeLandmarks(face_model), LandmarkDetector::Calculate3DEyeLandmarks(face_model, FX, FY, CX, CY), face_model.detection_certainty);
+        //visualizer.SetImage(frame, FX, FY, CX, CY);
+        //visualizer.SetObservationPose(pose_estimate, face_model.detection_certainty);
+        //visualizer.SetObservationLandmarks(face_model.detected_landmarks, face_model.detection_certainty, face_model.GetVisibilities());
+        //visualizer.SetObservationGaze(gaze_direction0, gaze_direction1, LandmarkDetector::CalculateAllEyeLandmarks(face_model), LandmarkDetector::Calculate3DEyeLandmarks(face_model, FX, FY, CX, CY), face_model.detection_certainty);
         //visualizer.SetObservationActionUnits(face_analyser.GetCurrentAUsReg(), face_analyser.GetCurrentAUsClass());
 
-        imshow("Gaze", visualizer.GetVisImage());
-        waitKey(10);
+        //imshow("Gaze", visualizer.GetVisImage());
+        //waitKey(10);
 
 }
 

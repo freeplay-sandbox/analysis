@@ -31,6 +31,22 @@ vector<float> getfeatures(const json& frame, bool mirror) {
 
 }
 
+array<feature, 70> getfaciallandmarks(const json& frame, bool mirror, size_t src_width, size_t src_height) {
+
+    array<feature, 70> features;
+
+    for (size_t i = 0; i < 70; i++) {
+        auto x = max(0., min(1., frame["faces"]["1"][i][0].get<double>()));
+        if(mirror) x = (1 - x);
+        auto y = max(0., min(1., frame["faces"]["1"][i][1].get<double>())); // Y coordinates of facial features
+        auto c = max(0., min(1., frame["faces"]["1"][i][2].get<double>())); // confidence
+        features[i] = {src_width * x, src_height * y, c};
+    }
+
+    return features;
+
+}
+
 #ifdef WITH_CAFFE
 
 GazeEstimator::GazeEstimator() {}

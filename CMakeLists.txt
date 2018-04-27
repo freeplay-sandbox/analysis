@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.2)
 project(freeplay_sandbox_analysis)
 
 set(CPACK_PACKAGE_VERSION_MAJOR "0")
@@ -15,7 +15,7 @@ set_property(TARGET blas PROPERTY INTERFACE_LINK_LIBRARIES ${BLAS_LIBRARIES} ${B
 message("BLAS information:") 
 message("  BLAS libraries: ${BLAS_LIBRARIES} ${BLAS95_LIBRARIES}") 
 
-find_package(OpenCV 3.1 COMPONENTS core imgproc calib3d highgui videoio REQUIRED cudaoptflow)
+find_package(OpenCV 3.1 COMPONENTS REQUIRED core imgproc calib3d highgui videoio OPTIONAL_COMPONENTS cudaoptflow)
 message("Found OpenCV ${OpenCV_VERSION}") 
 message("  OpenCV_INCLUDE_DIRS: ${OpenCV_INCLUDE_DIRS}") 
 
@@ -109,6 +109,14 @@ if(${WITH_OPENPOSE})
         RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
     )
 endif()
+
+add_executable(extract_gaze src/head_pose_estimator.cpp src/gaze_features.cpp src/extract_gaze.cpp)
+target_link_libraries(extract_gaze ${catkin_LIBRARIES})
+
+install(TARGETS extract_gaze
+        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
 
 if(${WITH_OPENFACE})
     add_executable(extract_gaze src/head_pose_openface.cpp)

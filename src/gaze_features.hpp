@@ -13,6 +13,8 @@
 
 #include "json.hpp"
 
+typedef std::tuple<uint, uint, float> feature; // a point in pixels + confidence
+
 const std::vector<size_t> FACIAL_POI    {36, 37, 38, 39, 40, 41, // right eye
                                     17, 18, 19, 20, 21, // right eyebrow
                                     42, 43, 44, 45, 46, 47, // left eye
@@ -22,7 +24,19 @@ const std::vector<size_t> FACIAL_POI    {36, 37, 38, 39, 40, 41, // right eye
 
 const std::vector<size_t> SKELETON_POI {0,1, 2, 5, 14,15,16,17}; // nose, neck, shoulders, left/right eyes & ears
 
-std::vector<float> getfeatures(const nlohmann::json& frame, bool mirror);
+/*
+ * Returns a vector of [x0,y0, x1, y1, ...] for (1) the facial POI 
+ * defined in FACIAL_POI, followed by (2) the skeleton POI defined 
+ * in SKELETON_POI
+ */
+std::vector<float> getfeatures(const nlohmann::json& frame, bool mirror=false);
+
+/*
+ * Returns an array of all the 70 facial landmarks with their x, y 
+ * and confidence value.
+ * Coordinates are in image pixels
+ */
+std::array<feature, 70> getfaciallandmarks(const nlohmann::json& frame, bool mirror=false, size_t src_width=960, size_t source_height=480);
 
 #ifdef WITH_CAFFE
 class GazeEstimator {

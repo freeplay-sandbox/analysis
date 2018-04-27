@@ -8,6 +8,8 @@
 #include <array>
 #include <string>
 
+#include "gaze_features.hpp" // for the 'feature' typedef
+
 // Anthropometric for male adult
 // Relative position of various facial feature relative to sellion
 // Values taken from https://en.wikipedia.org/wiki/Human_head
@@ -43,7 +45,6 @@ enum FACIAL_FEATURE {
 
 
 typedef cv::Matx44d head_pose;
-typedef std::tuple<uint, uint, float> feature; // a point in pixels + confidence
 
 class HeadPoseEstimation {
 

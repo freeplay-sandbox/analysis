@@ -205,11 +205,23 @@ int main(int argc, char **argv) {
     bool mirror = false;
 
     // translations in metre from the camera
-    cout << "child, mirrored, idx, timestamp, r11, r12, r13, r21, r22, r23, r31, r32, r33, tx, ty, tz" << endl;
+    cout << "child,mirrored,idx,timestamp,r11,r12,r13,r21,r22,r23,r31,r32,r33,tx,ty,tz,confidence" << endl;
+
+    size_t total_frames_purple=0, kept_frames_purple=0;
+    size_t total_frames_yellow=0, kept_frames_yellow=0;
 
     for (auto topic : topics) {
 
         for (auto frame : root[topic]["frames"]) {
+            if(topic.find("yellow") != string::npos) {
+                mirror = true;
+                total_frames_yellow++;
+            }
+            else {
+                mirror = false;
+                total_frames_purple++;
+            }
+
             if(frame["faces"].size() == 0) continue;
 
             if(frame["faces"].size() > 1) {
@@ -217,9 +229,12 @@ int main(int argc, char **argv) {
                 continue;
             }
 
+
             auto landmarks = getfaciallandmarks(frame, mirror);
 
-            auto p = head_pose_estimator.pose(landmarks);
+            head_pose p;
+            float confidence;
+            tie(p,confidence) = head_pose_estimator.pose(landmarks);
 
             if (p(2,3) > 20 || p(2,3) < 0) {
                 cerr << "Frame " << idx << ": child " << p(2,3) <<"m away: invalid detection? Skipping this frame." << endl;
@@ -230,13 +245,23 @@ int main(int argc, char **argv) {
                 continue;
             }
 
+            if (confidence < 0.1) {
+                cerr << "Frame " << idx << ": low confidence (" << confidence <<") Skipping this frame." << endl;
+                cerr << endl;
+                continue;
+            }
+
+ 
             if(topic.find("yellow") != string::npos) {
                 mirror = true;
-                cout << "y,y,";
+                cout << "y,";
             }
             else {
-                cout << "p,n,";
+                cout << "p,";
             }
+
+            if(mirror) {cout << "y,";}
+            else {cout << "n,";}
 
             //auto ts = ros::Time(frame["ts"].get<double>());
             cout << idx << "," << frame["ts"].get<double>() << ",";
@@ -253,12 +278,21 @@ int main(int argc, char **argv) {
                  << p(2,2) << "," 
                  << p(0,3) << "," 
                  << p(1,3) << "," 
-                 << p(2,3);
+                 << p(2,3) << ","
+                 << confidence;
             
             cout << endl;
 
 
             idx++;
+
+            if(topic.find("yellow") != string::npos) {
+                kept_frames_yellow++;
+            }
+            else {
+                kept_frames_purple++;
+            }
+
 
         }
         idx = 0;

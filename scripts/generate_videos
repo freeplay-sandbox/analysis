@@ -1,6 +1,6 @@
 #! /bin/bash
 
-EXEC=$HOME/src/freeplay-sandbox-analysis/build/devel/lib/freeplay_sandbox_analysis/replay_with_poses
+EXEC=$HOME/src/freeplay-sandbox-analysis/build-cuda/devel/lib/freeplay_sandbox_analysis/replay_with_poses
 DATASET_ROOT=/media/$USER/DoRoThy1/freeplay_sandbox/data
 
 orig_path=$(pwd)
@@ -26,10 +26,10 @@ do
     if [ ! -f videos/camera_purple.mkv ]; then
         $EXEC --topic camera_purple/rgb/image_raw/compressed --path . --video videos/camera_purple.mkv || { echo "video creation failed for $dir. Skipping." ; cd ..; continue; }
     fi
-    if [ ! -f videos/camera_yellow.mkv ]; then
-        $EXEC --topic camera_yellow/rgb/image_raw/compressed --path . --video videos/camera_yellow.mkv || { echo "video creation failed for $dir. Skipping." ; cd ..; continue; }
+#    if [ ! -f videos/camera_yellow.mkv ]; then
+#        $EXEC --topic camera_yellow/rgb/image_raw/compressed --path . --video videos/camera_yellow.mkv || { echo "video creation failed for $dir. Skipping." ; cd ..; continue; }
 
-    fi
+#    fi
     if [ ! -f videos/env_camera.mkv ]; then
         $EXEC --topic env_camera/qhd/image_color/compressed --path . --video videos/env_camera.mkv || { echo "video creation failed for $dir. Skipping." ; cd ..; continue; }
 
@@ -40,10 +40,10 @@ do
         $EXEC --topic camera_purple/rgb/image_raw/compressed --path . --video videos/camera_purple_raw.mkv --skeleton=0 --face=0 --hand=0 || { echo "video creation failed for $dir. Skipping." ; cd ..; continue; }
 
     fi
-    if [ ! -f videos/camera_yellow_raw.mkv ]; then
-        $EXEC --topic camera_yellow/rgb/image_raw/compressed --path . --video videos/camera_yellow_raw.mkv --skeleton=0 --face=0 --hand=0 || { echo "video creation failed for $dir. Skipping." ; cd ..; continue; }
-
-    fi
+#    if [ ! -f videos/camera_yellow_raw.mkv ]; then
+#        $EXEC --topic camera_yellow/rgb/image_raw/compressed --path . --video videos/camera_yellow_raw.mkv --skeleton=0 --face=0 --hand=0 || { echo "video creation failed for $dir. Skipping." ; cd ..; continue; }
+#
+#    fi
     if [ ! -f videos/env_camera_raw.mkv ]; then
         $EXEC --topic env_camera/qhd/image_color/compressed --path . --video videos/env_camera_raw.mkv --skeleton=0 --face=0 --hand=0 || { echo "video creation failed for $dir. Skipping." ; cd ..; continue; }
 
@@ -69,10 +69,10 @@ do
         $EXEC --topic camera_purple/rgb/image_raw/compressed --path . --video videos/camera_purple_skel.mkv --camera=0 || { echo "video creation failed for $dir. Skipping." ; cd ..; continue; }
 
     fi
-    if [ ! -f videos/camera_yellow_skel.mkv ]; then
-        $EXEC --topic camera_yellow/rgb/image_raw/compressed --path . --video videos/camera_yellow_skel.mkv --camera=0 || { echo "video creation failed for $dir. Skipping." ; cd ..; continue; }
-
-    fi
+#    if [ ! -f videos/camera_yellow_skel.mkv ]; then
+#        $EXEC --topic camera_yellow/rgb/image_raw/compressed --path . --video videos/camera_yellow_skel.mkv --camera=0 || { echo "video creation failed for $dir. Skipping." ; cd ..; continue; }
+#
+#    fi
     if [ ! -f videos/env_camera_skel.mkv ]; then
         $EXEC --topic env_camera/qhd/image_color/compressed --path . --video videos/env_camera_skel.mkv --camera=0 || { echo "video creation failed for $dir. Skipping." ; cd ..; continue; }
 

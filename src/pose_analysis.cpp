@@ -139,7 +139,9 @@ void callback(const sensor_msgs::CompressedImage::ConstPtr &rgb_msg,
     //cout << endl;
 
     rgb_model.fromCameraInfo(rgb_info_msg);
-    depth_model.fromCameraInfo(depth_info_msg);
+    cout << "RGB Camera calibration set: fx: " << rgb_model.fx() << ", fy: " << rgb_model.fy() << ", cx: " << rgb_model.cx() << ", cy: " << rgb_model.cy() << endl;
+     depth_model.fromCameraInfo(depth_info_msg);
+    cout << "Depth Camera calibration set: fx: " << depth_model.fx() << ", fy: " << depth_model.fy() << ", cx: " << depth_model.cx() << ", cy: " << depth_model.cy() << endl;
 
     auto rgb = imdecode(rgb_msg->data, 1);
 
@@ -193,7 +195,6 @@ int main(int argc, char **argv)
         ("help,h", "produces help message")
         ("version,v", "shows version and exits")
         ("ns", po::value<string>(), "camera namespace to process (must have /rgb and /depth sub namespaces)")
-        ("models", po::value<string>()->default_value("models/"), "path to OpenPose models")
         ("path", po::value<string>(), "record path (must contain experiment.yaml and freeplay.bag)")
         ;
 

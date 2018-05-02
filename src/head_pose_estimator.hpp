@@ -52,8 +52,10 @@ public:
 
     HeadPoseEstimation(float focalLength, float opticalCenterX, float opticalCenterY);
 
-    head_pose pose(const std::array<feature,70> facial_features) const;
-    std::vector<head_pose> poses(const std::vector<std::array<feature,70>> faces) const;
+    /** returns the 4x4 transformation matrix of the head, alongside with a confidence estimate
+     */
+    std::pair<head_pose,float> pose(const std::array<feature,70> facial_features) const;
+    std::vector<std::pair<head_pose,float>> poses(const std::vector<std::array<feature,70>> faces) const;
 
     float focalLength;
     float opticalCenterX;
@@ -68,6 +70,8 @@ private:
     /** Return the point corresponding to the dictionary marker.
     */
     cv::Point2f coordsOf(const std::array<feature,70> facial_features, FACIAL_FEATURE feature) const;
+
+    float confidenceOf(const std::array<feature,70> facial_features, FACIAL_FEATURE feature) const;
 
     /** Returns true if the lines intersect (and set r to the intersection
      *  coordinates), false otherwise.

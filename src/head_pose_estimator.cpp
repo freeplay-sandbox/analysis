@@ -22,7 +22,7 @@ HeadPoseEstimation::HeadPoseEstimation(float focalLength, float opticalCenterX, 
 }
 
 
-head_pose HeadPoseEstimation::pose(const std::array<feature,70> facial_features) const
+pair<head_pose, float> HeadPoseEstimation::pose(const std::array<feature,70> facial_features) const
 {
 
     cv::Mat projectionMat = cv::Mat::zeros(3,3,CV_32F);
@@ -56,12 +56,28 @@ head_pose HeadPoseEstimation::pose(const std::array<feature,70> facial_features)
 
     auto stomion = (coordsOf(facial_features, MOUTH_CENTER_TOP) + coordsOf(facial_features, MOUTH_CENTER_BOTTOM)) * 0.5;
     detected_points.push_back(stomion);
+        
+    std::vector<FACIAL_FEATURE> FACIAL_FEATURES = {
+        SELLION,
+        RIGHT_EYE,
+        LEFT_EYE,
+        RIGHT_SIDE,
+        LEFT_SIDE,
+        MOUTH_CENTER_TOP,
+        MOUTH_CENTER_BOTTOM,
+        MENTON,
+        NOSE
+    };
 
+    float confidence = 1;
+    for (auto feature : FACIAL_FEATURES) {
+        confidence = min(confidence, confidenceOf(facial_features, feature));
+    }
 
     // Initializing the head pose 1m away, roughly facing the robot
     // This initialization is important as it prevents solvePnP to find the
     // mirror solution (head *behind* the camera)
-    Mat tvec = (Mat_<double>(3,1) << 0., 0., 1000.);
+    Mat tvec = (Mat_<double>(3,1) << 0., 0., 1.);
     Mat rvec = (Mat_<double>(3,1) << 1.2, 1.2, -1.2);
 
     // Find the 3D pose of our head
@@ -109,12 +125,12 @@ head_pose HeadPoseEstimation::pose(const std::array<feature,70> facial_features)
 
 #endif
 
-    return pose;
+    return make_pair(pose, confidence);
 }
 
-std::vector<head_pose> HeadPoseEstimation::poses(const vector<array<feature,70>> faces) const {
+std::vector<pair<head_pose,float>> HeadPoseEstimation::poses(const vector<array<feature,70>> faces) const {
 
-    std::vector<head_pose> res;
+    std::vector<pair<head_pose,float>> res;
 
     for (const auto& face : faces){
         res.push_back(pose(face));
@@ -129,6 +145,12 @@ Point2f HeadPoseEstimation::coordsOf(const std::array<feature,70> facial_feature
     return Point2f(get<0>(facial_features[feature]),
                    get<1>(facial_features[feature]));
 }
+
+float HeadPoseEstimation::confidenceOf(const std::array<feature,70> facial_features, FACIAL_FEATURE feature) const
+{
+    return get<2>(facial_features[feature]);
+}
+
 
 // Finds the intersection of two lines, or returns false.
 // The lines are defined by (o1, p1) and (o2, p2).

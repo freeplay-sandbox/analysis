@@ -51,29 +51,6 @@ void my_handler(int s){
 const double SANDTRAY_LENGTH = 0.6; //m
 const double SANDTRAY_WIDTH = 0.338; //m
 
-vector<double> normalizetarget(const pair<double, double> pos, bool mirror) {
-
-    if (mirror)
-        return {pos.first / SANDTRAY_LENGTH, (SANDTRAY_WIDTH + pos.second)/ SANDTRAY_WIDTH};
-    else
-        return {pos.first / SANDTRAY_LENGTH, -pos.second/ SANDTRAY_WIDTH};
-}
-
-pair<double, double> interpolate(const TargetPoses::value_type& a, const TargetPoses::value_type& b, const TargetPoses::key_type& t) {
-
-    auto t1 = a.first.toSec();
-    auto t2 = b.first.toSec();
-
-    auto alpha = (t.toSec() - t1) / (t2-t1);
-
-    auto x0 = a.second.first;
-    auto dx = b.second.first - a.second.first;
-
-    auto y0 = a.second.second;
-    auto dy = b.second.second - a.second.second;
-
-    return {x0 + alpha * dx, y0 + alpha * dy};
-}
 
 
 int main(int argc, char **argv) {
@@ -214,21 +191,17 @@ int main(int argc, char **argv) {
 
         for (auto frame : root[topic]["frames"]) {
             if(topic.find("yellow") != string::npos) {
-                mirror = true;
+                //mirror = true;
+                mirror = false;
                 total_frames_yellow++;
             }
             else {
                 mirror = false;
                 total_frames_purple++;
             }
+            idx++;
 
             if(frame["faces"].size() == 0) continue;
-
-            if(frame["faces"].size() > 1) {
-                cerr << "Frame " << idx << ": more than one face (" << frame["faces"].size() << " faces). Skipping." << endl;
-                continue;
-            }
-
 
             auto landmarks = getfaciallandmarks(frame, mirror);
 
@@ -253,7 +226,6 @@ int main(int argc, char **argv) {
 
  
             if(topic.find("yellow") != string::npos) {
-                mirror = true;
                 cout << "y,";
             }
             else {
@@ -284,7 +256,6 @@ int main(int argc, char **argv) {
             cout << endl;
 
 
-            idx++;
 
             if(topic.find("yellow") != string::npos) {
                 kept_frames_yellow++;
@@ -304,6 +275,6 @@ int main(int argc, char **argv) {
     //std::ofstream fout(vm["path"].as<string>() + "/visual_tracking_dataset.json", ios_base::app);
     //fout << output;
     //fout.close();
-
-    cerr << "Computed gaze from head pose estimation on " << idx << " poses. Saved as " << vm["path"].as<string>() << "/gaze.csv" << endl;
+    cerr << "Kept " << kept_frames_purple << "/" << total_frames_purple << " frames for purple child (" << kept_frames_purple * 100. / total_frames_purple << "%)" << endl;
+    cerr << "Kept " << kept_frames_yellow << "/" << total_frames_yellow << " frames for yellow child (" << kept_frames_yellow * 100. / total_frames_yellow << "%)" << endl;
 }

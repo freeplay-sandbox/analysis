@@ -24,25 +24,6 @@ const static cv::Point3f P3D_STOMMION(10.0, 0., -75.0);
 const static cv::Point3f P3D_MENTON(0., 0.,-133.0);
 
 
-// Interesting facial features with their OpenPose/dlib landmark index
-enum FACIAL_FEATURE {
-    NOSE=30,
-    RIGHT_EYE=36,
-    LEFT_EYE=45,
-    RIGHT_SIDE=0,
-    LEFT_SIDE=16,
-    EYEBROW_RIGHT=21,
-    EYEBROW_LEFT=22,
-    MOUTH_UP=51,
-    MOUTH_DOWN=57,
-    MOUTH_RIGHT=48,
-    MOUTH_LEFT=54,
-    SELLION=27,
-    MOUTH_CENTER_TOP=62,
-    MOUTH_CENTER_BOTTOM=66,
-    MENTON=8
-};
-
 
 typedef cv::Matx44d head_pose;
 

@@ -15,6 +15,26 @@
 
 typedef std::tuple<uint, uint, float> feature; // a point in pixels + confidence
 
+// Interesting facial features with their OpenPose/dlib landmark index
+enum FACIAL_FEATURE {
+    NOSE=30,
+    RIGHT_EYE=36,
+    LEFT_EYE=45,
+    RIGHT_SIDE=0,
+    LEFT_SIDE=16,
+    EYEBROW_RIGHT=21,
+    EYEBROW_LEFT=22,
+    MOUTH_UP=51,
+    MOUTH_DOWN=57,
+    MOUTH_RIGHT=48,
+    MOUTH_LEFT=54,
+    SELLION=27,
+    MOUTH_CENTER_TOP=62,
+    MOUTH_CENTER_BOTTOM=66,
+    MENTON=8
+};
+
+
 const std::vector<size_t> FACIAL_POI    {36, 37, 38, 39, 40, 41, // right eye
                                     17, 18, 19, 20, 21, // right eyebrow
                                     42, 43, 44, 45, 46, 47, // left eye

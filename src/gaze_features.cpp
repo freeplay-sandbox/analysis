@@ -41,12 +41,12 @@ array<feature, 70> getfaciallandmarks(const json& frame, bool mirror, size_t src
     if(frame["faces"].size() > 0) // one face or more detected. Assume the correct one is the one closest to the image centre
     {
         face = frame["faces"]["1"];
-        auto min_dist = pow(face[NOSE][0].get<double>()-0.5,2) +
-                        pow(face[NOSE][0].get<double>() - 0.5, 2);
+        auto min_dist = pow(face[NOSE][0].get<double>() - 0.5, 2) +
+                        pow(face[NOSE][1].get<double>() - 0.5, 2);
 
         for (auto& f : frame["faces"]) {
-            auto dist = pow(f[NOSE][0].get<double>()-0.5,2) + 
-                        pow(f[NOSE][0].get<double>() - 0.5, 2);
+            auto dist = pow(f[NOSE][0].get<double>() - 0.5, 2) + 
+                        pow(f[NOSE][1].get<double>() - 0.5, 2);
 
             if(dist < min_dist) {
                 face = f;

@@ -179,7 +179,7 @@ void callback(const sensor_msgs::CompressedImage::ConstPtr &rgb_msg,
     debug = greyscale * 0.7 + depth8bit * 0.3;
     imshow("rectification", debug);
     //imshow("depth rect", depth_rect);
-    //imshow("depth rect", depth8bit);
+    imshow("depth rect", depth8bit);
     
     waitKey(10);
 }

@@ -8,13 +8,22 @@ import tf
 
 import tf.transformations as transformations
 import geometry_msgs.msg
+from visualization_msgs.msg import Marker
 
+# Obtained with the following steps:
+# $ rosparam set /use_sim_time True
+# $ rosbag play --clock freeplay.bag
+# $ rosrun tf static_transform_publisher -0.3 0.169 0 0 0 0 sandtray_centre sandtray 20
+# $ rosrun tf tf_echo sandtray_centre camera_{purple|yellow}_rgb_optical_frame
+YELLOW_CAM_TO_CENTRE_QUATERNION=[-0.530, 0.220, -0.314, 0.757]
+YELLOW_CAM_TO_CENTRE_TRANSLATION=[-0.408, -0.208, 0.035]
 
-YELLOW_CAM_TO_CENTRE_QUATERNION=[0.530, -0.220, 0.314, 0.757]
-YELLOW_CAM_TO_CENTRE_TRANSLATION=[0.141, 0.182, 0.397]
+PURPLE_CAM_TO_CENTRE_QUATERNION=[0.220, -0.530, 0.757, -0.314]
+PURPLE_CAM_TO_CENTRE_TRANSLATION=[-0.408, 0.190, 0.035]
 
-PURPLE_CAM_TO_CENTRE_QUATERNION=[0.220, -0.530, 0.757, 0.314]
-PURPLE_CAM_TO_CENTRE_TRANSLATION=[-0.154, 0.178, 0.385]
+SANDTRAY_WIDTH=0.338
+SANDTRAY_LENGHT=0.6
+OUT_OF_BOUND_MARGIN = 1.20 # 20% of the table size
 
 def normalize(vec):
     norm=numpy.linalg.norm(vec)
@@ -55,9 +64,9 @@ def project_gaze_on_plane(gaze, plane):
 
 def make_transform_matrix(quaternion, translation):
     M = numpy.identity(4)
-    T = transformations.translation_matrix(YELLOW_CAM_TO_CENTRE_TRANSLATION)
+    T = transformations.translation_matrix(translation)
     M = numpy.dot(M, T)
-    R = transformations.quaternion_matrix(YELLOW_CAM_TO_CENTRE_QUATERNION)
+    R = transformations.quaternion_matrix(quaternion)
     M = numpy.dot(M, R)
 
     M /= M[3, 3]
@@ -107,6 +116,36 @@ def find_next_matching_ts(l1, l2, idx1, idx2):
     return -1, -1
 
 
+def make_marker(proj, child, outofbound=False):
+
+
+    color = [1., 1., 1.]
+    if child=="p":
+        color = [1.,0,1]
+    if child=="y":
+        color = [1.,1,0]
+    if outofbound:
+        color = [1.,0,0]
+
+    marker = Marker()
+    marker.ns = child + "_child"
+    marker.id = 0
+    marker.type = Marker.SPHERE
+    marker.action = Marker.ADD
+    marker.header.stamp = rospy.Time.now()
+    marker.header.frame_id = "sandtray_centre"
+    marker.pose.position.x = proj[0]
+    marker.pose.position.y = proj[1]
+    marker.pose.position.z = proj[2]
+    marker.scale.x = .05
+    marker.scale.y = .05
+    marker.scale.z = .05
+    marker.color.a = 1.0
+    r,g,b = color
+    marker.color.r = r
+    marker.color.g = g
+    marker.color.b = b
+    return marker
 
 
 if __name__ == '__main__':
@@ -114,8 +153,7 @@ if __name__ == '__main__':
 
     br = tf.TransformBroadcaster()
 
-    purpleposepub = rospy.Publisher("/purple_gaze", geometry_msgs.msg.PointStamped, queue_size=1)
-    yellowposepub = rospy.Publisher("/yellow_gaze", geometry_msgs.msg.PointStamped, queue_size=1)
+    gazeposepub = rospy.Publisher("visualization_marker", Marker, queue_size=1)
 
     import csv
 
@@ -145,35 +183,37 @@ if __name__ == '__main__':
 
     print("Found %d matching frames" % len(matching_ts))
 
+    idx=0
     for pair in matching_ts:
 
         for row in pair:
 
-            t = transform(row['r11'],row['r12'],row['r13'],
-                            row['r21'],row['r22'],row['r23'],
-                            row['r31'],row['r32'],row['r33'],
-                            row['tx'],row['ty'],row['tz'],
-                            PURPLE_CAM_TO_CENTRE if row["child"] == "p" else YELLOW_CAM_TO_CENTRE)
+            t = transform(float(row['r11']),float(row['r12']),float(row['r13']),
+                          float(row['r21']),float(row['r22']),float(row['r23']),
+                          float(row['r31']),float(row['r32']),float(row['r33']),
+                          float(row['tx'] ),float(row['ty'] ),float(row['tz']),
+                          PURPLE_CAM_TO_CENTRE if row["child"] == 'p' else YELLOW_CAM_TO_CENTRE)
 
             br.sendTransform(transformations.translation_from_matrix(t),
-                                transformations.quaternion_from_matrix(t),
-                                rospy.Time.now(),
-                                row["child"] + "_child",
-                                "sandtray_centre")
+                             transformations.quaternion_from_matrix(t),
+                             rospy.Time.now(),
+                             row["child"] + "_child",
+                             "sandtray_centre")
 
 
             proj = project_gaze_on_plane(t, numpy.identity(4))
-            pose = geometry_msgs.msg.PointStamped()
-            pose.header.stamp = rospy.Time.now()
-            pose.header.frame_id = "sandtray_centre"
-            pose.point.x = proj[0]
-            pose.point.y = proj[1]
-            pose.point.z = proj[2]
-            if row["child"] == "p":
-                purpleposepub.publish(pose)
-            else:
-                yellowposepub.publish(pose)
 
 
-        #rospy.spinOnce()
+            outofbound = False
+            px,py,pz=proj
+            if abs(px) > SANDTRAY_LENGHT * OUT_OF_BOUND_MARGIN or abs(py) > SANDTRAY_WIDTH * OUT_OF_BOUND_MARGIN:
+                outofbound = True
+
+            marker = make_marker(proj, row["child"], outofbound)
+            gazeposepub.publish(marker)
+
+
+        #idx += 1
+        #print("Done %d%%" % (idx*100./len(matching_ts)))
         rate.sleep()
+

@@ -117,6 +117,13 @@ install(TARGETS extract_gaze
         RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
+add_executable(analyse_optical_flow src/analyse_optical_flow.cpp)
+target_link_libraries(analyse_optical_flow ${catkin_LIBRARIES})
+
+install(TARGETS analyse_optical_flow
+        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
 
 if(${WITH_OPENFACE})
     add_executable(extract_gaze src/head_pose_openface.cpp)

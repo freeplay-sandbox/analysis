@@ -64,10 +64,10 @@ int main(int argc, char **argv) {
         // _hsv[2] -> magnitude
 
 
-        cv::meanStdDev(_hsv[0], magnitude_mean, magnitude_stddev);
-        cv::minMaxIdx(_hsv[0], &magnitude_min, &magnitude_max);
+        cv::meanStdDev(_hsv[2], magnitude_mean, magnitude_stddev);
+        cv::minMaxIdx(_hsv[2], &magnitude_min, &magnitude_max);
 
-        cv::meanStdDev(_hsv[2], angle_mean, angle_stddev);
+        cv::meanStdDev(_hsv[0], angle_mean, angle_stddev);
 
         cout << std::fixed << idx << "," << magnitude_mean[0] << "," << magnitude_stddev[0] << "," << magnitude_max << ",";
         cout << std::fixed << angle_mean[0] << "," << angle_stddev[0] << endl;

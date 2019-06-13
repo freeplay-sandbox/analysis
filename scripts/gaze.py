@@ -106,14 +106,14 @@ def find_next_matching_ts(l1, l2, idx1, idx2):
         ts2 = float(l2[idx2]["timestamp"])
 
         if abs(ts1 - ts2) < EPSILON:
-            return idx1 + 1, idx2 + 1
+            return ts1, idx1 + 1, idx2 + 1
 
         if ts1 < ts2:
             idx1 += 1
         else:
             idx2 += 1
 
-    return -1, -1
+    return 0, -1, -1
 
 
 def make_marker(proj, child, outofbound=False):
@@ -157,7 +157,7 @@ if __name__ == '__main__':
 
     import csv
 
-    rate = rospy.Rate(60)
+    rate = rospy.Rate(30)
 
     purple = []
     yellow = []
@@ -175,18 +175,18 @@ if __name__ == '__main__':
 
     matching_ts = []
     while True:
-        idx1, idx2 = find_next_matching_ts(purple, yellow, idx1, idx2)
+        ts, idx1, idx2 = find_next_matching_ts(purple, yellow, idx1, idx2)
         if idx1 < 0:
             break
 
-        matching_ts.append((purple[idx1], yellow[idx2]))
+        matching_ts.append((ts, purple[idx1], yellow[idx2]))
 
     print("Found %d matching frames" % len(matching_ts))
 
     idx=0
-    for pair in matching_ts:
+    for ts, purple, yellow in matching_ts:
 
-        for row in pair:
+        for row in [purple, yellow]:
 
             t = transform(float(row['r11']),float(row['r12']),float(row['r13']),
                           float(row['r21']),float(row['r22']),float(row['r23']),
@@ -196,7 +196,8 @@ if __name__ == '__main__':
 
             br.sendTransform(transformations.translation_from_matrix(t),
                              transformations.quaternion_from_matrix(t),
-                             rospy.Time.now(),
+                             #rospy.Time.now(),
+                             rospy.Time(ts),
                              row["child"] + "_child",
                              "sandtray_centre")
 

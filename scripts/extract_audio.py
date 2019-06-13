@@ -4,6 +4,8 @@ Based on code taken from https://github.com/ElenaDiamantidou/rosbagAnnotator/blo
 Copyright Eleni Diamantidou
 """
 
+import logging
+logging.basicConfig(level=logging.INFO)
 
 import roslib
 import cv2
@@ -37,7 +39,7 @@ def parse_arguments():
     return inputFile
     
 
-def audio_bag_file(bag, topic):
+def audio_bag_file(bag, topic, only_timestamps=False):
     """ Convert ROS audio messages into a stand-alone MP3 file
     """
 
@@ -52,13 +54,19 @@ def audio_bag_file(bag, topic):
 
     nb_msg = 0
     last_percent = 0
+
+    start_ts = None
     for topic, msg, t in bag.read_messages(topics=[topic_name]):
+        if start_ts is None:
+           start_ts = t.to_sec()
+           if only_timestamps:
+               break
         audio += msg.data
         nb_msg += 1
         percent = int(nb_msg * 100 / messages)
         if percent != last_percent:
             last_percent = percent
-            print("\x1b[F%d%% done" % percent)
+            logging.info("\x1b[F%d%% done" % percent)
 
     #nBytes = len(audio)
     #nSamples = nBytes / 2
@@ -70,7 +78,7 @@ def audio_bag_file(bag, topic):
     frequency = frequency * 1000
     #bag.close()    
 
-    return audio, frequency
+    return audio, frequency, start_ts
 
 #save mp3 file
 def write_mp3_file(audioData, mp3FileName):
@@ -118,20 +126,23 @@ def createWaveform(wavFileName):
     plt.show()
 
 
-def process_bag(bag_path, force=False):
+def process_bag(bag_path, force=False, only_timestamps=False):
+
+    if only_timestamps:
+        force=True
 
     dest = os.path.join(os.path.abspath(os.path.dirname(bag_path)), "audio")
     basename = os.path.basename(bag_path)[:-4] # remove .bag extension
-    print("Extracted audio files will be saved to %s" % dest)
+    logging.info("Extracted audio files will be saved to %s" % dest)
     if not os.path.exists(dest):
         os.makedirs(dest)
 
-    print("Opening %s (this may take up to several min depending on the size of the bag file)..." % bag_path)
+    logging.info("Opening %s (this may take up to several min depending on the size of the bag file)..." % bag_path)
 
     try:
         bag = rosbag.Bag(bag_path, 'r')
     except:
-        print("[EE] Error while opening %s. Skipping it." % bag_path)
+        logging.warning("Error while opening %s. Skipping it." % bag_path)
         return
 
     topics = yaml.load(bag._get_yaml_info())["topics"]
@@ -140,12 +151,16 @@ def process_bag(bag_path, force=False):
         if "audio" in topic["topic"]:
             filename = "%s_%s.mp3" % (basename, topic["topic"].replace("/", "_"))
             if os.path.exists(os.path.join(dest, filename)) and not force:
+                logging.info("%s already exist. Skipping it." % filename)
                 continue
-            print("Extracting %s to %s\n" % (topic["topic"], filename))
-            audioData, frequency = audio_bag_file(bag, topic) 
+            logging.info("Extracting %s to %s\n" % (topic["topic"], filename))
+            audioData, frequency, start_ts = audio_bag_file(bag, topic, only_timestamps) 
+            print("%s,%s" % (os.path.dirname(bag_path), start_ts))
+            if only_timestamps:
+                continue
 
             mp3FileName = write_mp3_file(audioData, os.path.join(dest, filename))
-            print("Converting %s to WAV..." % filename)
+            logging.info("Converting %s to WAV..." % filename)
             mp3_to_wav(mp3FileName, frequency)
 
 if __name__=="__main__":
@@ -153,6 +168,7 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser(description='PInSoRo Dataset -- ROS bags audio extractor')
     parser.add_argument("path", help="path to a directory or a bag file. Directories are recursively traversed for bag files")
     parser.add_argument("-f", "--force", action='store_true', help="if true, overwrite existing files. Otherwise, skip them.")
+    parser.add_argument("--only-timestamps", action='store_true', help="if set, do not export audio, and only print out the starting timestamp of audio streams.")
 
     args = parser.parse_args()
 
@@ -161,9 +177,9 @@ if __name__=="__main__":
     else: # directory
 
         for dirpath, dirs, files in os.walk(args.path, topdown=False):
-            print("Processing %s" % dirpath)
+            logging.info("Processing %s" % dirpath)
             for name in files:
-                if name.endswith(".bag"):
+                if name.endswith("freeplay.bag"):
                     sourcepath = os.path.abspath(os.path.join(args.path, dirpath, name))
-                    process_bag(sourcepath, args.force)
+                    process_bag(sourcepath, args.force, args.only_timestamps)
 

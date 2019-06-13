@@ -91,7 +91,7 @@ website](https://github.com/CMU-Perceptual-Computing-Lab/openpose/blob/master/do
         "ts": <timestamp in floating sec>,
         "poses": {
             "1": [ # pose index
-                # x,y in image coordinate, c is confidence in [0.0,1.0]
+                # x,y in image coordinates (pixels), c is confidence in [0.0,1.0]
                 [x, y, c], # 0- Nose
                 [x, y, c], # 1- Neck
                 [x, y, c], # 2- RShoulder
@@ -117,7 +117,7 @@ website](https://github.com/CMU-Perceptual-Computing-Lab/openpose/blob/master/do
       },
       "faces": {
             "1": [ # face index
-              # x,y in image coordinate, c is confidence in [0.0,1.0]
+              # x,y in image coordinates, c is confidence in [0.0,1.0]
               [x, y, c],
               ... # 70 points in total, see OpenPose website for indices
             ],
@@ -128,12 +128,12 @@ website](https://github.com/CMU-Perceptual-Computing-Lab/openpose/blob/master/do
       "hands": {
             "1": { # hand index
                 "left": [
-                    # x,y in image coordinate, c is confidence in [0.0,1.0]
+                    # x,y in image coordinates, c is confidence in [0.0,1.0]
                     [x, y, c],
                     ... # 20 points in total, see OpenPose website for indices
                 ],
                 "right": [
-                    # x,y in image coordinate, c is confidence in [0.0,1.0]
+                    # x,y in image coordinates, c is confidence in [0.0,1.0]
                     [x, y, c],
                     ... # 20 points in total
                 ]
@@ -158,7 +158,8 @@ library](https://github.com/miloyip/nativejson-benchmark) both in terms of
 parsing speed and memory requirements (hint: `libjsoncpp` does not do great).
 
 In our experience, [nlohmann JSON library](https://nlohmann.github.io/json/)
-does a decent job.
+does a decent job. [simdjson](https://github.com/lemire/simdjson) is however probably
+the fastest option today.
 
 
 Other processings
